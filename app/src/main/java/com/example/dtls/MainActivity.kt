@@ -1,12 +1,15 @@
 package com.example.dtls
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.RectF
 import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.dtls.databinding.ActivityMainBinding
 import org.pytorch.Tensor
@@ -24,39 +27,61 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        replaceFragment(Home())
+
+        // dialog to ask for permissions
+        if(ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA
+            )!= PackageManager.PERMISSION_GRANTED) {
+            val alertDialog = android.app.AlertDialog.Builder(this)
+                .setTitle("Solicitud de permisos")
+                .setMessage("La aplicacion requiere de los siguientes permisos para funcionar")
+                .setPositiveButton("Aceptar") { _, _ ->
+                    // request permissions
+                    requestPermissions(arrayOf(Manifest.permission.CAMERA), 123)
+                }
+                .create()
+
+            alertDialog.show()
+        }
+        replaceFragment(Home()) // this changes the fragment
+
+
+
+//            val dialogFragment = PermissionDialogFragment()
+//            dialogFragment.show(vi,"Solicitud de permisos")
+//            replaceFragment(PermissionDialogFragment())
+//        }
 
         binding.bottomNavigationView.setOnItemSelectedListener {
             when (it.itemId){
                 R.id.home -> replaceFragment(Home())
                 R.id.gestures -> replaceFragment(Gestures())
                 R.id.settings -> replaceFragment(Settings())
-                else ->{
-
-                }
+                else ->{}
             }
             true
         }
 
-//        var bitmap = BitmapFactory.decodeStream(assets.open("a1.jpg"))
-//        // optimized_b4nms
-//        val moduleFilePath = assetFilePath(this, "optimized_b4nms.pth")
-//        val module = Module.load(moduleFilePath)
-//
-//        bitmap = resizeBitmap(bitmap)
-//        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
-//            bitmap,
-//            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
-//        )
-////        val textView: TextView = findViewById()
-////        textView.text = inputTensor.toString()+"\n"
-//        // the model have 3 outputs, so make it into Tuple
-//        val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
-//        // This is a self implemented NMS...
-//        // (which if torchvision provide this, we no longer need to implemenet ourselves)
-//        var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
-////        var text = textView.text.toString() + detResult.toString()
-////        textView.text = text
+        /*var bitmap = BitmapFactory.decodeStream(assets.open("a1.jpg"))
+        // optimized_b4nms
+        val moduleFilePath = assetFilePath(this, "optimized_b4nms.pth")
+        val module = Module.load(moduleFilePath)
+
+        bitmap = resizeBitmap(bitmap)
+        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
+            bitmap,
+            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
+        )
+//        val textView: TextView = findViewById()
+//        textView.text = inputTensor.toString()+"\n"
+        // the model have 3 outputs, so make it into Tuple
+        val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
+        // This is a self implemented NMS...
+        // (which if torchvision provide this, we no longer need to implemenet ourselves)
+        var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
+//        var text = textView.text.toString() + detResult.toString()
+//        textView.text = text */
     }
 
     private fun replaceFragment(fragment: Fragment){

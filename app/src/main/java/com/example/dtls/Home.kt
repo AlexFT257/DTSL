@@ -1,6 +1,8 @@
 package com.example.dtls
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
@@ -11,7 +13,16 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.LifecycleOwner
+import com.google.android.material.button.MaterialButton
+import com.google.common.util.concurrent.ListenableFuture
 import org.pytorch.IValue
 import org.pytorch.Module
 import org.pytorch.Tensor
@@ -19,32 +30,17 @@ import org.pytorch.torchvision.TensorImageUtils
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.concurrent.Executors
 
 
 class Home : Fragment() {
 
+    private val executor = Executors.newSingleThreadExecutor()
+    private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
+    private lateinit var previewView : PreviewView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-//        var bitmap = BitmapFactory.decodeStream(assets.open("a1.jpg"))
-//        // optimized_b4nms
-//        val moduleFilePath = assetFilePath(this, "optimized_b4nms.pth")
-//        val module = Module.load(moduleFilePath)
-//
-//        bitmap = resizeBitmap(bitmap)
-//        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
-//            bitmap,
-//            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
-//        )
-//        val textView: TextView = findViewById(R.id.testText)
-//        textView.text = inputTensor.toString()+"\n"
-//        // the model have 3 outputs, so make it into Tuple
-//        val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
-//        // This is a self implemented NMS...
-//        // (which if torchvision provide this, we no longer need to implemenet ourselves)
-//        var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
-//        var text = textView.text.toString() + detResult.toString()
-//        textView.text = text
 
     }
 
@@ -55,7 +51,54 @@ class Home : Fragment() {
         // Inflate the layout for this fragment
         val rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
+        /*if(ContextCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.CAMERA
+            )!= PackageManager.PERMISSION_GRANTED){
+            val dialogFragment = PermissionDialogFragment()
+            dialogFragment.show(childFragmentManager,"Permisos Dialog")
+        }*/
 
+
+        previewView = rootView.findViewById<PreviewView>(R.id.previewView)
+
+
+        val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
+
+
+        reloadButton.setOnClickListener{
+            testRedNeuronal(rootView)
+        }
+       /* var assetManager = requireContext().assets
+
+        var bitmap = BitmapFactory.decodeStream(assetManager.open("a1.jpg"))
+        // optimized_b4nms
+        val moduleFilePath = assetFilePath(requireContext(), "optimized_b4nms.pth")
+        val module = Module.load(moduleFilePath)
+
+        bitmap = resizeBitmap(bitmap)
+        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
+            bitmap,
+            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
+        )
+        val textView: TextView = rootView.findViewById(R.id.testText)
+        textView.text = inputTensor.toString()+"\n"
+        // the model have 3 outputs, so make it into Tuple
+        val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
+        // This is a self implemented NMS...
+        // (which if torchvision provide this, we no longer need to implemenet ourselves)
+        var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
+        var highestScore = getHighestScore(detResult)
+        // detResult[0].boundingBox
+        var boundingBox = highestScore?.boundingBox
+        var classId = highestScore?.classId
+        var score= highestScore?.score
+        var text = "Bounding Box: $boundingBox\n ClassID: $classId\n Score: $score\n"
+        textView.text = text*/
+        return rootView
+    }
+
+    fun testRedNeuronal(rootView :View) {
         var assetManager = requireContext().assets
 
         var bitmap = BitmapFactory.decodeStream(assetManager.open("a1.jpg"))
@@ -75,9 +118,61 @@ class Home : Fragment() {
         // This is a self implemented NMS...
         // (which if torchvision provide this, we no longer need to implemenet ourselves)
         var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
-        var text = textView.text.toString() + detResult.toString()
+        var highestScore = getHighestScore(detResult)
+        // detResult[0].boundingBox
+        var boundingBox = highestScore?.boundingBox
+        var classId = highestScore?.classId
+        var score= highestScore?.score
+        var text = "Bounding Box: $boundingBox\n ClassID: $classId\n Score: $score\n"
         textView.text = text
-        return rootView
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        if (allPermissionsGranted()) {
+            startCamera()
+        } else {
+            ActivityCompat.requestPermissions(
+                requireActivity(),
+                REQUIRED_PERMISSIONS,
+                REQUEST_CODE_PERMISSIONS
+            )
+        }
+    }
+
+    private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
+        ContextCompat.checkSelfPermission(requireContext(), it) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun startCamera() {
+        cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+
+        cameraProviderFuture.addListener(Runnable {
+            val cameraProvider = cameraProviderFuture.get()
+            bindPreview(cameraProvider)
+        }, ContextCompat.getMainExecutor(requireContext()))
+    }
+
+    fun bindPreview(cameraProvider : ProcessCameraProvider) {
+        var preview : Preview = Preview.Builder()
+            .build()
+
+        var cameraSelector : CameraSelector = CameraSelector.Builder()
+            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+            .build()
+
+        preview.setSurfaceProvider(previewView.surfaceProvider)
+
+        var camera = cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview)
+    }
+
+
+    fun getHighestScore(detectResult: List<DetectResult>): DetectResult? {
+        if(detectResult.isEmpty()){
+            return null
+        }
+
+        return detectResult.maxByOrNull { it.score }
     }
 
     fun resizeBitmap(bitmap: Bitmap): Bitmap {
@@ -179,14 +274,7 @@ class Home : Fragment() {
     }
 
     companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         * @return A new instance of fragment Home.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            Home()
+        private const val REQUEST_CODE_PERMISSIONS = 10
+        private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 }
