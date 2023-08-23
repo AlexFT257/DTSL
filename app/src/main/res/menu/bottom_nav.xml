@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item android:title="@string/inicio"
+        android:id="@+id/home"
+        android:icon="@drawable/ic_camera"/>
+    <item android:title="@string/gestos"
+        android:id="@+id/gestures"
+        android:icon="@drawable/ic_gestures"/>
+
+    <item android:title="@string/opciones"
+        android:id="@+id/settings"
+        android:icon="@drawable/ic_settings"/>
+
+</menu>
