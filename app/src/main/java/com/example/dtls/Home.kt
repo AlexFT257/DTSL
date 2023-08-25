@@ -1,18 +1,17 @@
 package com.example.dtls
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Matrix
-import android.graphics.RectF
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -25,11 +24,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.common.util.concurrent.ListenableFuture
 import org.pytorch.IValue
 import org.pytorch.Module
-import org.pytorch.Tensor
 import org.pytorch.torchvision.TensorImageUtils
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import java.util.concurrent.Executors
 
 
@@ -37,7 +32,22 @@ class Home : Fragment() {
 
     private val executor = Executors.newSingleThreadExecutor()
     private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
+    private lateinit var translatedTextView: EditText
     private lateinit var previewView : PreviewView
+    private lateinit var gestureDetection: GestureDetection
+    private var translate: Boolean =false
+
+    val spanishAlphabet = "abcdefghijklmnñopqrstuvwxyz"
+    val alphabetMap =spanishAlphabet
+        .withIndex()
+        .associate { (index, letter) -> index to letter.toString() }
+
+
+    // debug textview
+    private lateinit var debugClassId: TextView
+    private lateinit var debugScore: TextView
+    private lateinit var debugBoundigBox: TextView
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,10 +71,20 @@ class Home : Fragment() {
 
 
         previewView = rootView.findViewById<PreviewView>(R.id.previewView)
+        translatedTextView= rootView.findViewById<EditText>(R.id.translatedText)
+        debugScore = rootView.findViewById<TextView>(R.id.textScore)
+        debugClassId = rootView.findViewById<TextView>(R.id.textClassId)
+        debugBoundigBox = rootView.findViewById<TextView>(R.id.textBoundingBox)
+
 
 
         val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
+        val button = rootView.findViewById<MaterialButton>(R.id.translateButton)
 
+
+        button.setOnClickListener{
+            translateCurrentGesture()
+        }
 
         reloadButton.setOnClickListener{
             testRedNeuronal(rootView)
@@ -98,15 +118,56 @@ class Home : Fragment() {
         return rootView
     }
 
+    fun makeToast(string: String){
+        Toast.makeText(requireContext(),string,Toast.LENGTH_LONG)
+    }
+    fun translateCurrentGesture(){
+
+        Log.println(Log.ERROR,"Translate Current Gesture", "Entro")
+
+        var detection = getImage()?.let { gestureDetection.getTranslation(it) }
+        Log.println(Log.ERROR,"Translate Current Gesture", "Entro2")
+
+        if (detection==null){
+//            Toast.makeText(requireContext(),"Error al obtener el gesto", Toast.LENGTH_LONG)
+            Log.println(Log.ERROR,"Translate Current Gesture", "Detection is null")
+            return
+        }
+
+        debugScore.text = detection.score.toString()
+        debugClassId.text = detection.classId.toString()
+        debugBoundigBox.text = detection.boundingBox.toString()
+
+
+//        if (detection?.classId!! <0 || detection?.classId!! >27){
+////            Toast.makeText(requireContext(),"Error al obtener el gesto",Toast.LENGTH_LONG)
+//            Log.println(Log.ERROR,"Translate Current Gesture", "class id out of bounds")
+//            return
+//        }
+
+        var letter = alphabetMap[detection.classId]
+
+        translatedTextView.append(letter)
+    }
+
+
+    fun getImage(): Bitmap? {
+        var previewBitmap: Bitmap? =null
+        requireActivity().runOnUiThread {
+            previewBitmap= previewView.bitmap!!
+        }
+        return previewBitmap
+    }
+
     fun testRedNeuronal(rootView :View) {
         var assetManager = requireContext().assets
 
         var bitmap = BitmapFactory.decodeStream(assetManager.open("a1.jpg"))
         // optimized_b4nms
-        val moduleFilePath = assetFilePath(requireContext(), "optimized_b4nms.pth")
+        val moduleFilePath = gestureDetection.assetFilePath(requireContext(), "optimized_b4nms.pth")
         val module = Module.load(moduleFilePath)
 
-        bitmap = resizeBitmap(bitmap)
+        bitmap = gestureDetection.resizeBitmap(bitmap)
         val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
             bitmap,
             TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
@@ -117,8 +178,8 @@ class Home : Fragment() {
         val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
         // This is a self implemented NMS...
         // (which if torchvision provide this, we no longer need to implemenet ourselves)
-        var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
-        var highestScore = getHighestScore(detResult)
+        var detResult =gestureDetection.nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
+        var highestScore =gestureDetection.getHighestScore(detResult)
         // detResult[0].boundingBox
         var boundingBox = highestScore?.boundingBox
         var classId = highestScore?.classId
@@ -131,6 +192,7 @@ class Home : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         if (allPermissionsGranted()) {
             startCamera()
+            gestureDetection = GestureDetection.getInstance(requireContext())
         } else {
             ActivityCompat.requestPermissions(
                 requireActivity(),
@@ -167,111 +229,6 @@ class Home : Fragment() {
     }
 
 
-    fun getHighestScore(detectResult: List<DetectResult>): DetectResult? {
-        if(detectResult.isEmpty()){
-            return null
-        }
-
-        return detectResult.maxByOrNull { it.score }
-    }
-
-    fun resizeBitmap(bitmap: Bitmap): Bitmap {
-        val desiredWith = 640
-        val desiredHeight = 640
-
-        val scaleX = desiredWith.toFloat() /bitmap.width
-        val scaleY = desiredHeight.toFloat() / bitmap.height
-
-        val matrix = Matrix()
-        matrix.postScale(scaleX,scaleY)
-
-        return Bitmap.createBitmap(bitmap,0,0,bitmap.width,bitmap.height,matrix,false)
-    }
-
-    fun assetFilePath(context: Context, assetName: String): String? {
-        val file = File(context.filesDir, assetName)
-
-        try {
-            context.assets.open(assetName).use { `is` ->
-                FileOutputStream(file).use { os ->
-                    val buffer = ByteArray(4 * 1024)
-                    while (true) {
-                        val length = `is`.read(buffer)
-                        if (length <= 0)
-                            break
-                        os.write(buffer, 0, length)
-                    }
-                    os.flush()
-                    os.close()
-                }
-                return file.absolutePath
-            }
-        } catch (e: IOException) {
-            Log.e("pytorchandroid", "Error process asset $assetName to file path")
-        }
-
-        return null
-    }
-
-    data class DetectResult(
-        val boundingBox: RectF,
-        val classId: Int,
-        val score: Float,
-    )
-
-    fun nms(x: Tensor, threshold: Float): List<DetectResult> {
-        // x: [0:4] - box, [4] - score, [5] - class
-        val data = x.dataAsFloatArray
-        val numElem = x.shape()[0].toInt()
-        val innerShape = x.shape()[1].toInt()
-        val selected_indices = (0 until numElem).toMutableList()
-
-        val scores =  data.sliceArray( (0 until numElem).flatMap { r->(r*innerShape)+4 until (r*innerShape)+5 } )
-        val boxes = data.sliceArray( (0 until numElem).flatMap { r->(r*innerShape) until (r*innerShape)+4 } )
-        val classes = data.sliceArray( (0 until numElem).flatMap { r->(r*innerShape)+5 until (r*innerShape)+6 } )
-
-        for (i in 0 until numElem) {
-            val current_class = classes[i].toInt()
-            for (j in i+1 until numElem) {
-                val box_i = boxes.sliceArray(i*4 until (i*4)+4)
-                val box_j = boxes.sliceArray(j*4 until (j*4)+4)
-                val iou = calculate_iou(box_i, box_j)
-                if (iou > threshold && classes[j].toInt() == current_class) {
-                    if (scores[j] > scores[i]) {
-                        selected_indices.remove(i)
-                        break
-                    } else {
-                        selected_indices.remove(j)
-                    }
-                }
-            }
-        }
-
-        val result = mutableListOf<DetectResult>()
-        for (i in 0 until numElem) {
-            if (selected_indices.contains(i)) {
-                val box = boxes.slice((i*4) until (i*4)+4)
-                val detection = DetectResult(boundingBox = RectF(box[0], box[1], box[2], box[3]), score = scores[i], classId = classes[i].toInt())
-                result.add(detection)
-            }
-        }
-
-        return result
-    }
-
-    fun calculate_iou(box1: FloatArray, box2: FloatArray): Float {
-        val x1 = maxOf(box1[0], box2[0])
-        val y1 = maxOf(box1[1], box2[1])
-        val x2 = minOf(box1[2], box2[2])
-        val y2 = minOf(box1[3], box2[3])
-
-        val intersection = maxOf(0f, x2 - x1) * maxOf(0f, y2 - y1)
-        val area1 = (box1[2] - box1[0]) * (box1[3] - box1[1])
-        val area2 = (box2[2] - box2[0]) * (box2[3] - box2[1])
-        val union = area1 + area2 - intersection
-
-        return intersection / union
-    }
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
