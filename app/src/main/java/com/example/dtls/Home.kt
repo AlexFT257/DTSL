@@ -4,7 +4,13 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.os.Bundle
+import android.os.Environment
+import android.text.Editable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -13,11 +19,13 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.toRect
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.button.MaterialButton
@@ -25,6 +33,9 @@ import com.google.common.util.concurrent.ListenableFuture
 import org.pytorch.IValue
 import org.pytorch.Module
 import org.pytorch.torchvision.TensorImageUtils
+import java.io.File
+import java.io.FileOutputStream
+import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 
 
@@ -34,8 +45,22 @@ class Home : Fragment() {
     private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
     private lateinit var translatedTextView: EditText
     private lateinit var previewView : PreviewView
+    private lateinit var overlayView: View
     private lateinit var gestureDetection: GestureDetection
-    private var translate: Boolean =false
+
+    private val timeUntilWhiteSpace = 5000
+    private var timeSinceLastTranslation: Long =0
+    private var currentTime: Long = 0
+    private var translationThread: Thread? = null
+    @Volatile
+    private var isTranslating: Boolean = false
+
+    private var bitmapImage: Bitmap? = null
+    private var bitmapThread: Thread? =null
+
+    // openCV variables
+
+
 
     val spanishAlphabet = "abcdefghijklmnñopqrstuvwxyz"
     val alphabetMap =spanishAlphabet
@@ -69,25 +94,48 @@ class Home : Fragment() {
             dialogFragment.show(childFragmentManager,"Permisos Dialog")
         }*/
 
-
         previewView = rootView.findViewById<PreviewView>(R.id.previewView)
         translatedTextView= rootView.findViewById<EditText>(R.id.translatedText)
         debugScore = rootView.findViewById<TextView>(R.id.textScore)
         debugClassId = rootView.findViewById<TextView>(R.id.textClassId)
         debugBoundigBox = rootView.findViewById<TextView>(R.id.textBoundingBox)
-
-
+        overlayView = rootView.findViewById<View>(R.id.overlayView)
 
         val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
-        val button = rootView.findViewById<MaterialButton>(R.id.translateButton)
+        val translateButton = rootView.findViewById<MaterialButton>(R.id.translateButton)
+        val deleteButton = rootView.findViewById<MaterialButton>(R.id.deleteButton)
+        val spaceButton = rootView.findViewById<MaterialButton>(R.id.spaceButton)
 
-
-        button.setOnClickListener{
+        translateButton.setOnClickListener{
             translateCurrentGesture()
+            isTranslating = !isTranslating
+//            bitmapThread?.start()
+
+        }
+
+        deleteButton.setOnClickListener{
+            var string = translatedTextView.text
+
+            if(string.isEmpty()){
+                return@setOnClickListener
+            }
+
+           translatedTextView.text = string.delete(string.length-1,string.length)
+        }
+
+        spaceButton.setOnClickListener{
+            if(translatedTextView.text.isEmpty()){
+                return@setOnClickListener
+            }
+            if (translatedTextView.text.last().equals(" ")){
+                return@setOnClickListener
+            }
+            translatedTextView.text.append(" ")
         }
 
         reloadButton.setOnClickListener{
             testRedNeuronal(rootView)
+            // to minimize errors
         }
        /* var assetManager = requireContext().assets
 
@@ -115,46 +163,161 @@ class Home : Fragment() {
         var score= highestScore?.score
         var text = "Bounding Box: $boundingBox\n ClassID: $classId\n Score: $score\n"
         textView.text = text*/
+
+
+        // thread in charge of the translation
+        translationThread = Thread{
+            while (true){
+                if(!isTranslating){
+                    continue
+                }
+                Log.println(
+                    Log.DEBUG,
+                    "Trans Thread",
+                    "Is translating" +isTranslating.toString())
+                currentTime = System.currentTimeMillis()
+                val isLetter =  translateCurrentGesture()
+                if(isLetter){
+                    timeSinceLastTranslation = System.currentTimeMillis() - currentTime
+
+                    // if the last char is a " " do not add the " "
+                    val lastChar = translatedTextView.text.last()
+                    if(lastChar.equals(" ")){
+                        continue
+                    }
+                    // if the time since the last valid translation is less than
+                    // the constant add a " "
+                    if(timeSinceLastTranslation> timeUntilWhiteSpace){
+                        translatedTextView.text.append(" ")
+                    }
+                }
+                Thread.sleep(1000)
+            }
+        }
+
+//        translationThread?.start()
+
+
+
         return rootView
+    }
+
+    override fun onDestroyView() {
+        isTranslating = false
+//        translationThread?.join()
+//        bitmapThread?.join()
+
+        super.onDestroyView()
+    }
+
+    fun drawRectangleOverlay(rectF: RectF){
+        val overlayPaint = Paint().apply {
+            color = Color.RED
+            style = Paint.Style.STROKE
+            strokeWidth = 4f
+        }
+
+        if (rectF.isEmpty || rectF == null){
+            return
+        }
+
+        val rect = rectF.toRect()
+
+
+        overlayView.requestRectangleOnScreen(rect,true)
+        var canvas = previewView.bitmap?.let { Canvas(it) }
+        canvas?.clipRect(rectF)
+
+        previewView.draw(canvas)
+
+
+    }
+
+    fun String.toEditable(): Editable = Editable.Factory.getInstance().newEditable(this)
+
+    private fun imageProxyToBitmap(imageProxy: ImageProxy):Bitmap?{
+        val planeProxy = imageProxy.planes[0]
+        val buffer: ByteBuffer= planeProxy.buffer
+        val bytes = ByteArray(buffer.remaining())
+        buffer.get()
+        return BitmapFactory.decodeByteArray(bytes,0,bytes.size)
     }
 
     fun makeToast(string: String){
         Toast.makeText(requireContext(),string,Toast.LENGTH_LONG)
     }
-    fun translateCurrentGesture(){
+    fun translateCurrentGesture():Boolean{
 
-        Log.println(Log.ERROR,"Translate Current Gesture", "Entro")
-
-        var detection = getImage()?.let { gestureDetection.getTranslation(it) }
-        Log.println(Log.ERROR,"Translate Current Gesture", "Entro2")
-
-        if (detection==null){
-//            Toast.makeText(requireContext(),"Error al obtener el gesto", Toast.LENGTH_LONG)
-            Log.println(Log.ERROR,"Translate Current Gesture", "Detection is null")
-            return
+        var bitmap = getImage()
+        if (bitmap==null){
+            Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
+            return false
         }
 
+//        saveBitmap(bitmap)
+
+        var detection = gestureDetection.getTranslation(bitmap)
+
+        if (detection==null){
+            Log.println(Log.ERROR,"Translate Current Gesture", "Detection is null")
+            return false
+        }
+
+        // debug
         debugScore.text = detection.score.toString()
-        debugClassId.text = detection.classId.toString()
+        debugClassId.text = detection.classId.toString() +" = "+ alphabetMap[detection.classId]
         debugBoundigBox.text = detection.boundingBox.toString()
 
+        if(detection.score < gestureDetection.threshold){
+            Log.println(
+                Log.ERROR,
+                "Translate Current Gesture",
+                "Score: "+ detection.score.toString()
+            )
+            return false
+        }
 
-//        if (detection?.classId!! <0 || detection?.classId!! >27){
-////            Toast.makeText(requireContext(),"Error al obtener el gesto",Toast.LENGTH_LONG)
-//            Log.println(Log.ERROR,"Translate Current Gesture", "class id out of bounds")
-//            return
-//        }
+            drawRectangleOverlay(detection.boundingBox)
+
 
         var letter = alphabetMap[detection.classId]
 
         translatedTextView.append(letter)
+        return true
     }
 
+    fun checkGrammar(string: String): String {
+        return "a"
+    }
+
+    private var count: Int = 0
+    fun saveBitmap(bitmap: Bitmap){
+        var myDir = Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_PICTURES)
+
+        try {
+            myDir.mkdir()
+
+
+            var fileName = "$count.jpg"
+            var file =File(myDir,fileName)
+
+            var resizedBitmap = gestureDetection.resizeBitmap(bitmap)
+
+            count++;
+            var out = FileOutputStream(file)
+            resizedBitmap.compress(Bitmap.CompressFormat.JPEG,100,out)
+            out.flush()
+            out.close()
+        }catch (exc: Exception){
+            Log.println(Log.ERROR,"save Bitmap", exc.toString())
+        }
+    }
 
     fun getImage(): Bitmap? {
         var previewBitmap: Bitmap? =null
         requireActivity().runOnUiThread {
-            previewBitmap= previewView.bitmap!!
+            previewBitmap= previewView.bitmap
         }
         return previewBitmap
     }
@@ -172,8 +335,6 @@ class Home : Fragment() {
             bitmap,
             TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
         )
-        val textView: TextView = rootView.findViewById(R.id.testText)
-        textView.text = inputTensor.toString()+"\n"
         // the model have 3 outputs, so make it into Tuple
         val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
         // This is a self implemented NMS...
@@ -184,8 +345,10 @@ class Home : Fragment() {
         var boundingBox = highestScore?.boundingBox
         var classId = highestScore?.classId
         var score= highestScore?.score
-        var text = "Bounding Box: $boundingBox\n ClassID: $classId\n Score: $score\n"
-        textView.text = text
+
+        debugBoundigBox.text = boundingBox.toString()
+        debugClassId.text = classId.toString()
+        debugScore.text = score.toString()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -211,7 +374,19 @@ class Home : Fragment() {
 
         cameraProviderFuture.addListener(Runnable {
             val cameraProvider = cameraProviderFuture.get()
-            bindPreview(cameraProvider)
+
+            val preview: Preview = Preview.Builder().build().also {
+                it.setSurfaceProvider(previewView.surfaceProvider)
+            }
+
+
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            cameraProvider.unbindAll()
+//            preview.setSurfaceProvider(previewView.surfaceProvider)
+
+            cameraProvider.bindToLifecycle(this , cameraSelector, preview)
+
         }, ContextCompat.getMainExecutor(requireContext()))
     }
 
@@ -235,3 +410,4 @@ class Home : Fragment() {
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
     }
 }
+

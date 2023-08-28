@@ -39,11 +39,15 @@ class MainActivity : AppCompatActivity() {
                 .setPositiveButton("Aceptar") { _, _ ->
                     // request permissions
                     requestPermissions(arrayOf(Manifest.permission.CAMERA), 123)
+                    requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),12)
                 }
                 .create()
 
             alertDialog.show()
         }
+        requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE),12)
+
+
         replaceFragment(Home()) // this changes the fragment
 
 

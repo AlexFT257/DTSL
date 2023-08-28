@@ -13,34 +13,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 
-/*fun testRedNeuronal(rootView : View) {
-     var assetManager = requireContext().assets
-
-     var bitmap = BitmapFactory.decodeStream(assetManager.open("a1.jpg"))
-     // optimized_b4nms
-     val moduleFilePath = assetFilePath(requireContext(), "optimized_b4nms.pth")
-     val module = Module.load(moduleFilePath)
-
-     bitmap = resizeBitmap(bitmap)
-     val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
-         bitmap,
-         TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
-     )
-     val textView: TextView = rootView.findViewById(R.id.testText)
-     textView.text = inputTensor.toString()+"\n"
-     // the model have 3 outputs, so make it into Tuple
-     val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
-     // This is a self implemented NMS...
-     // (which if torchvision provide this, we no longer need to implemenet ourselves)
-     var detResult = nms(x.toTensor(), threshold) // the 0.45 is IoU threshold
-     var highestScore = getHighestScore(detResult)
-     // detResult[0].boundingBox
-     var boundingBox = highestScore?.boundingBox
-     var classId = highestScore?.classId
-     var score= highestScore?.score
-     var text = "Bounding Box: $boundingBox\n ClassID: $classId\n Score: $score\n"
-     textView.text = text
- }*/
 class GestureDetection private constructor(private val context: Context){
     public var models: Array<String> = arrayOf(
         "optimized_b4nms.pth",
@@ -50,7 +22,8 @@ class GestureDetection private constructor(private val context: Context){
     public var threshold: Float = 0.65f
     private val module: Module = Module.load(assetFilePath(context,models[1]))
 
-
+    // TODO: hay que reescribir esto para que inlcuya el tiempo entre traducion
+    // TODO: de forma que se pued dicernir cuando agregar un espacio o no
     data class DetectResult(
         val boundingBox: RectF,
         val classId: Int,
@@ -65,21 +38,13 @@ class GestureDetection private constructor(private val context: Context){
         }
     }
 
-    public fun getTranslation(bitmap: Bitmap): DetectResult? {
-//        var module = Module.load(assetFilePath(context,"optimized_b4nms.pth"))
-
+    fun getTranslation(bitmap: Bitmap): DetectResult? {
         var bitmap= resizeBitmap(bitmap)
-        Log.println(Log.ERROR,"In getTranslation tensor" ,bitmap.toString() )
-
         val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
             bitmap,
             TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
             TensorImageUtils.TORCHVISION_NORM_STD_RGB
         )
-        Log.println(Log.ERROR,"In getTranslation tensor" ,inputTensor.toString() )
-        Log.println(Log.ERROR,"In getTranslation tensor" ,IValue.from(inputTensor).toString() )
-        var iValue= IValue.from(inputTensor)
-//        Log.println(Log.ERROR,"In getTranslation tensor" ,module.forward(iValue).toString() )
         var x :IValue
         var boxes: IValue
         var score: IValue
@@ -94,19 +59,12 @@ class GestureDetection private constructor(private val context: Context){
             return null
         }
 
-        Log.println(Log.ERROR,"In getTranslation tensor" ,"Aqca ")
-
         if(x.isNull){
             Log.println(Log.ERROR,"In getTranslation" ,"x is null")
         }else{
             Log.println(Log.ERROR,"In getTranslation" ,x.toString())
         }
 
-//        if(x==null){
-//            Log.println(Log.ERROR,"In getTranslation x" ,x.toString() )
-//        Log.println(Log.ERROR,"In getTranslation x" ,scores.toString() )
-
-//        }
         // this a self implemented (NMS) no maximum suppress
         var detection = nms(x.toTensor(), threshold)
         if(detection.isEmpty()){
@@ -116,9 +74,6 @@ class GestureDetection private constructor(private val context: Context){
 
         }
 
-//        for (value in detection){
-//            Log.println(Log.ERROR,"In getTranslation" ,value.toString() )
-//        }
          return getHighestScore(detection)
     }
 

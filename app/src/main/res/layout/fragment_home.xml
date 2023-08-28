@@ -17,12 +17,22 @@
         app:cardElevation="4dp"
         app:cardUseCompatPadding="true"
         >
+
+        <View
+            android:id="@+id/overlayView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
         <androidx.camera.view.PreviewView
             android:id="@+id/previewView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent" >
+
+        </androidx.camera.view.PreviewView>
+
+
 
     </androidx.cardview.widget.CardView>
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -44,20 +54,20 @@
 
         <EditText
             android:id="@+id/translatedText"
+
             android:layout_width="match_parent"
             android:layout_height="40dp"
-            android:layout_marginTop="88dp"
             android:layout_marginStart="12dp"
+            android:layout_marginTop="28dp"
             android:layout_marginEnd="12dp"
+            android:hint="Texto Traducido"
+            android:inputType="none"
+            android:textIsSelectable="true"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/testText"
-            android:hint="Texto Traducido"
-            android:inputType="none"
-            android:focusable="false"
-            android:focusableInTouchMode="false"
-            >
+
+            app:layout_constraintTop_toTopOf="@+id/testText">
 
         </EditText>
 
@@ -142,26 +152,49 @@
             android:id="@+id/reloadButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="16dp"
+            android:padding="12dp"
             android:text="Test Red Neuronal"
             app:icon="@drawable/ic_reload"
-            android:padding="12dp"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
+            app:layout_constraintEnd_toStartOf="@+id/translateButton" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/translateButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:icon="@drawable/ic_camera"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="16dp"
             android:padding="12dp"
             android:text="Traducir"
-            app:layout_constraintBottom_toTopOf="@+id/reloadButton"
-            app:layout_constraintEnd_toEndOf="parent"
+            app:icon="@drawable/ic_camera"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/spaceButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_marginEnd="12dp"
             android:layout_marginBottom="12dp"
-            />
+            android:padding="12dp"
+            android:text="Espacio"
+            app:icon="@drawable/ic_space"
+            app:layout_constraintBottom_toTopOf="@+id/translateButton"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/deleteButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="12dp"
+            android:padding="12dp"
+            android:text="Borrar"
+            app:icon="@drawable/ic_delete"
+            app:layout_constraintBottom_toTopOf="@+id/spaceButton"
+            app:layout_constraintEnd_toEndOf="parent" />
 
 
     </androidx.constraintlayout.widget.ConstraintLayout>
