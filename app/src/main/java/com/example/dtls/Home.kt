@@ -4,10 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.RectF
 import android.os.Bundle
 import android.os.Environment
 import android.text.Editable
@@ -16,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -26,7 +23,6 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.toRect
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.button.MaterialButton
@@ -53,10 +49,13 @@ class Home : Fragment() {
     private lateinit var overlayView: View
     private lateinit var progressBar:ProgressBar
 
+    private lateinit var optionContainer: LinearLayout
+    private lateinit var optionButtons: MutableList<MaterialButton>
+    private lateinit var suggestionTextView: TextView
+
     private lateinit var gestureDetection: GestureDetection
     private lateinit var gestureDetectionOnline: GestureDetectionOnline
 
-    private var loading: Boolean = false
 
     private val timeUntilWhiteSpace = 5000
     private var timeSinceLastTranslation: Long =0
@@ -67,10 +66,6 @@ class Home : Fragment() {
 
     private var bitmapImage: Bitmap? = null
     private var bitmapThread: Thread? =null
-
-    // openCV variables
-
-
 
     val spanishAlphabet = "abcdefghijklmnopqrstuvwxyz"
     val alphabetMap =spanishAlphabet
@@ -86,7 +81,6 @@ class Home : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
     }
 
     override fun onCreateView(
@@ -111,6 +105,10 @@ class Home : Fragment() {
         debugBoundigBox = rootView.findViewById<TextView>(R.id.textBoundingBox)
         overlayView = rootView.findViewById<View>(R.id.overlayView)
         progressBar = rootView.findViewById<ProgressBar>(R.id.progressCircular)
+        optionContainer = rootView.findViewById(R.id.optionContainer)
+        suggestionTextView = rootView.findViewById(R.id.suggestionTextView)
+
+
 
         val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
         val translateButton = rootView.findViewById<MaterialButton>(R.id.translateButton)
@@ -118,6 +116,9 @@ class Home : Fragment() {
         val spaceButton = rootView.findViewById<MaterialButton>(R.id.spaceButton)
 
         progressBar.visibility = View.GONE
+
+        optionButtons = mutableListOf<MaterialButton>()
+        suggestionTextView.visibility = View.GONE
 
         translateButton.setOnClickListener{
             progressBar.visibility = View.VISIBLE
@@ -146,35 +147,7 @@ class Home : Fragment() {
 
         reloadButton.setOnClickListener{
             testRedNeuronal(rootView)
-            // to minimize errors
         }
-       /* var assetManager = requireContext().assets
-
-        var bitmap = BitmapFactory.decodeStream(assetManager.open("a1.jpg"))
-        // optimized_b4nms
-        val moduleFilePath = assetFilePath(requireContext(), "optimized_b4nms.pth")
-        val module = Module.load(moduleFilePath)
-
-        bitmap = resizeBitmap(bitmap)
-        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
-            bitmap,
-            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
-        )
-        val textView: TextView = rootView.findViewById(R.id.testText)
-        textView.text = inputTensor.toString()+"\n"
-        // the model have 3 outputs, so make it into Tuple
-        val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
-        // This is a self implemented NMS...
-        // (which if torchvision provide this, we no longer need to implemenet ourselves)
-        var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
-        var highestScore = getHighestScore(detResult)
-        // detResult[0].boundingBox
-        var boundingBox = highestScore?.boundingBox
-        var classId = highestScore?.classId
-        var score= highestScore?.score
-        var text = "Bounding Box: $boundingBox\n ClassID: $classId\n Score: $score\n"
-        textView.text = text*/
-
 
         // thread in charge of the translation
         translationThread = Thread{
@@ -208,8 +181,6 @@ class Home : Fragment() {
 
 //        translationThread?.start()
 
-
-
         return rootView
     }
 
@@ -221,28 +192,6 @@ class Home : Fragment() {
         super.onDestroyView()
     }
 
-    fun drawRectangleOverlay(rectF: RectF){
-        val overlayPaint = Paint().apply {
-            color = Color.RED
-            style = Paint.Style.STROKE
-            strokeWidth = 4f
-        }
-
-        if (rectF.isEmpty || rectF == null){
-            return
-        }
-
-        val rect = rectF.toRect()
-
-
-        overlayView.requestRectangleOnScreen(rect,true)
-        var canvas = previewView.bitmap?.let { Canvas(it) }
-        canvas?.clipRect(rectF)
-
-        previewView.draw(canvas)
-
-
-    }
 
     fun String.toEditable(): Editable = Editable.Factory.getInstance().newEditable(this)
 
@@ -297,14 +246,45 @@ class Home : Fragment() {
                             "width: ${predictions[0].width}\n" + "height: ${predictions[0].height}"
             }
 
+            Log.println(
+                Log.ERROR,
+                "Translate Current Gesture",
+                "Score: "+ predictions[0].confidence.toString()
+            )
             if(predictions[0].confidence < gestureDetectionOnline.threshold){
-                Log.println(
-                    Log.ERROR,
-                    "Translate Current Gesture",
-                    "Score: "+ predictions[0].confidence.toString()
-                )
                 requireActivity().runOnUiThread {
                     progressBar.visibility = View.GONE
+                    suggestionTextView.visibility =View.VISIBLE
+                    optionContainer.visibility = View.VISIBLE
+
+                    // delete previous buttons
+                    optionContainer.removeAllViews()
+                    optionButtons.clear()
+
+                    val maxButtonsToShow = 3
+                    for ((index,prediction) in predictions.withIndex()){
+                        if (index>=maxButtonsToShow){
+                            break
+                        }
+
+                        val optionButton = MaterialButton(requireContext())
+                        optionButton.text = "${prediction.className}"
+
+                        optionButton.setOnClickListener {
+                            translatedTextView.append(prediction.className)
+
+                            for (button in optionButtons){
+                                optionContainer.removeView(button)
+                            }
+                            optionButtons.clear()
+                            optionContainer.visibility = View.GONE
+                            suggestionTextView.visibility = View.GONE
+                        }
+
+                        // add the button to the list and container
+                        optionButtons.add(optionButton)
+                        optionContainer.addView(optionButton)
+                    }
                 }
                 return@launch
             }
