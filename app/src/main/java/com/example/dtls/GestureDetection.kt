@@ -17,13 +17,16 @@ class GestureDetection private constructor(private val context: Context){
     public var models: Array<String> = arrayOf(
         "optimized_b4nms.pth",
         "optimized_b4nms.pt",
-        "yolov8n.pt")
+        "yolov8n.pt",
+        "hub_torch_script.pt",
+        "best.torchscript",
+        "optimized_torchscript_b4_nms_model.pt",
+        "optimized_torchscript_b4_nms_model.pth")
 
+    public val model = 0
     public var threshold: Float = 0.65f
-    private val module: Module = Module.load(assetFilePath(context,models[1]))
+    private val module: Module = Module.load(assetFilePath(context,models[model]))
 
-    // TODO: hay que reescribir esto para que inlcuya el tiempo entre traducion
-    // TODO: de forma que se pued dicernir cuando agregar un espacio o no
     data class DetectResult(
         val boundingBox: RectF,
         val classId: Int,
@@ -39,9 +42,10 @@ class GestureDetection private constructor(private val context: Context){
     }
 
     fun getTranslation(bitmap: Bitmap): DetectResult? {
-        var bitmap= resizeBitmap(bitmap)
+        var resizedBitmap= resizeBitmap(bitmap)
+        Home
         val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
-            bitmap,
+            resizedBitmap,
             TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
             TensorImageUtils.TORCHVISION_NORM_STD_RGB
         )
@@ -55,7 +59,7 @@ class GestureDetection private constructor(private val context: Context){
             score = mScores
 
         }catch (e:Exception){
-            Log.println(Log.ERROR,"In getTranslation","Prediction Failed")
+            Log.println(Log.ERROR,"In getTranslation","Prediction Failed"+ e.toString())
             return null
         }
 

@@ -16,6 +16,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.camera.core.CameraSelector
@@ -30,6 +31,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.button.MaterialButton
 import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.pytorch.IValue
 import org.pytorch.Module
 import org.pytorch.torchvision.TensorImageUtils
@@ -46,7 +51,12 @@ class Home : Fragment() {
     private lateinit var translatedTextView: EditText
     private lateinit var previewView : PreviewView
     private lateinit var overlayView: View
+    private lateinit var progressBar:ProgressBar
+
     private lateinit var gestureDetection: GestureDetection
+    private lateinit var gestureDetectionOnline: GestureDetectionOnline
+
+    private var loading: Boolean = false
 
     private val timeUntilWhiteSpace = 5000
     private var timeSinceLastTranslation: Long =0
@@ -62,7 +72,7 @@ class Home : Fragment() {
 
 
 
-    val spanishAlphabet = "abcdefghijklmnñopqrstuvwxyz"
+    val spanishAlphabet = "abcdefghijklmnopqrstuvwxyz"
     val alphabetMap =spanishAlphabet
         .withIndex()
         .associate { (index, letter) -> index to letter.toString() }
@@ -100,17 +110,18 @@ class Home : Fragment() {
         debugClassId = rootView.findViewById<TextView>(R.id.textClassId)
         debugBoundigBox = rootView.findViewById<TextView>(R.id.textBoundingBox)
         overlayView = rootView.findViewById<View>(R.id.overlayView)
+        progressBar = rootView.findViewById<ProgressBar>(R.id.progressCircular)
 
         val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
         val translateButton = rootView.findViewById<MaterialButton>(R.id.translateButton)
         val deleteButton = rootView.findViewById<MaterialButton>(R.id.deleteButton)
         val spaceButton = rootView.findViewById<MaterialButton>(R.id.spaceButton)
 
-        translateButton.setOnClickListener{
-            translateCurrentGesture()
-            isTranslating = !isTranslating
-//            bitmapThread?.start()
+        progressBar.visibility = View.GONE
 
+        translateButton.setOnClickListener{
+            progressBar.visibility = View.VISIBLE
+            trasnlateCurrenteGestureOnline()
         }
 
         deleteButton.setOnClickListener{
@@ -244,14 +255,76 @@ class Home : Fragment() {
     }
 
     fun makeToast(string: String){
-        Toast.makeText(requireContext(),string,Toast.LENGTH_LONG)
+        Toast.makeText(requireContext(),string,Toast.LENGTH_SHORT)
+    }
+
+    fun trasnlateCurrenteGestureOnline(){
+        var bitmap = getImage()
+        GlobalScope.launch {
+
+            if (bitmap==null){
+                Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
+                requireActivity().runOnUiThread {
+                    progressBar.visibility = View.GONE
+                }
+                return@launch
+            }
+
+            var predictions= withContext(Dispatchers.IO){
+                gestureDetectionOnline.getPredictions(bitmap)
+            }
+
+            if (predictions.isEmpty()){
+                requireActivity().runOnUiThread {
+                    Log.d("Prediction","No se detecto ningun gesto")
+                    progressBar.visibility = View.GONE
+                }
+                return@launch
+            }
+
+            for (prediction in predictions){
+                Log.d("Prediction",prediction.toString())
+            }
+
+
+
+            // debug
+            requireActivity().runOnUiThread {
+                debugScore.text = predictions[0].confidence.toString()
+                debugClassId.text = predictions[0].className
+                debugBoundigBox.text =
+                    "x: ${predictions[0].x}\n"+"y: ${predictions[0].y}\n"+
+                            "width: ${predictions[0].width}\n" + "height: ${predictions[0].height}"
+            }
+
+            if(predictions[0].confidence < gestureDetectionOnline.threshold){
+                Log.println(
+                    Log.ERROR,
+                    "Translate Current Gesture",
+                    "Score: "+ predictions[0].confidence.toString()
+                )
+                requireActivity().runOnUiThread {
+                    progressBar.visibility = View.GONE
+                }
+                return@launch
+            }
+
+            requireActivity().runOnUiThread {
+                translatedTextView.append(predictions[0].className)
+                progressBar.visibility = View.GONE
+            }
+        }
     }
     fun translateCurrentGesture():Boolean{
 
         var bitmap = getImage()
+
         if (bitmap==null){
             Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
             return false
+        }else{
+            Log.println(Log.ERROR,"Translate Current Gesture","Bitmap is not Null")
+//            saveBitmap(bitmap)
         }
 
 //        saveBitmap(bitmap)
@@ -277,7 +350,7 @@ class Home : Fragment() {
             return false
         }
 
-            drawRectangleOverlay(detection.boundingBox)
+//            drawRectangleOverlay(detection.boundingBox)
 
 
         var letter = alphabetMap[detection.classId]
@@ -318,6 +391,7 @@ class Home : Fragment() {
         var previewBitmap: Bitmap? =null
         requireActivity().runOnUiThread {
             previewBitmap= previewView.bitmap
+            bitmapImage = previewBitmap
         }
         return previewBitmap
     }
@@ -326,8 +400,11 @@ class Home : Fragment() {
         var assetManager = requireContext().assets
 
         var bitmap = BitmapFactory.decodeStream(assetManager.open("a1.jpg"))
+        val moduleFilePath = gestureDetection.assetFilePath(
+            requireContext(),
+            gestureDetection.models[gestureDetection.model]
+        )
         // optimized_b4nms
-        val moduleFilePath = gestureDetection.assetFilePath(requireContext(), "optimized_b4nms.pth")
         val module = Module.load(moduleFilePath)
 
         bitmap = gestureDetection.resizeBitmap(bitmap)
@@ -356,6 +433,7 @@ class Home : Fragment() {
         if (allPermissionsGranted()) {
             startCamera()
             gestureDetection = GestureDetection.getInstance(requireContext())
+            gestureDetectionOnline = GestureDetectionOnline.getInstance(requireContext())
         } else {
             ActivityCompat.requestPermissions(
                 requireActivity(),
