@@ -1,59 +1,38 @@
-package com.example.dtls
-
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.example.dtls.R
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [Gestures.newInstance] factory method to
- * create an instance of this fragment.
- */
 class Gestures : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_gestures, container, false)
-    }
+        val view = inflater.inflate(R.layout.fragment_gestures, container, false)
+        val recyclerView = view.findViewById<RecyclerView>(R.id.recyclerView)
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment Gestures.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            Gestures().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
-            }
+        // List of alphabets from A to Z
+        val alphabetList = ('A'..'Z').map { it.toString() }
+
+        // List of image resources (Assuming you have R.drawable.image_a, R.drawable.image_b, etc.)
+        val imageResources = ('A'..'Z').map { letter ->
+            val resourceName = "${letter.toLowerCase()}"
+            resources.getIdentifier(resourceName, "drawable", requireContext().packageName)
+        }
+
+        // Configuring RecyclerView
+        val layoutManager = LinearLayoutManager(requireContext())
+        val adapter = MyAdapter(alphabetList, imageResources, recyclerView)
+        recyclerView.layoutManager = layoutManager
+        recyclerView.adapter = adapter
+
+        return view
     }
 }
