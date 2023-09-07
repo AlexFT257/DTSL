@@ -226,7 +226,15 @@ class Home : Fragment() {
             if (predictions.isEmpty()){
                 requireActivity().runOnUiThread {
                     Log.d("Prediction","No se detecto ningun gesto")
+
+                    // reset the view and content if nothing was found
                     progressBar.visibility = View.GONE
+                    suggestionTextView.visibility =View.GONE
+                    optionContainer.visibility = View.GONE
+
+                    // delete previous buttons
+                    optionContainer.removeAllViews()
+                    optionButtons.clear()
                 }
                 return@launch
             }
@@ -291,7 +299,15 @@ class Home : Fragment() {
 
             requireActivity().runOnUiThread {
                 translatedTextView.append(predictions[0].className)
+
+                // reset the view and content if nothing was found
                 progressBar.visibility = View.GONE
+                suggestionTextView.visibility =View.GONE
+                optionContainer.visibility = View.GONE
+
+                // delete previous buttons
+                optionContainer.removeAllViews()
+                optionButtons.clear()
             }
         }
     }
