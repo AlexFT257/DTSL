@@ -1,9 +1,12 @@
 package com.example.dtls
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.os.Environment
 import android.text.Editable
@@ -122,7 +125,12 @@ class Home : Fragment() {
 
         translateButton.setOnClickListener{
             progressBar.visibility = View.VISIBLE
-            trasnlateCurrenteGestureOnline()
+            if(isInternetAvailable(requireContext())){
+                trasnlateCurrenteGestureOnline()
+            } else{
+                translateCurrentGesture()
+                progressBar.visibility = View.GONE
+            }
         }
 
         deleteButton.setOnClickListener{
@@ -179,7 +187,7 @@ class Home : Fragment() {
             }
         }
 
-//        translationThread?.start()
+
 
         return rootView
     }
@@ -192,6 +200,13 @@ class Home : Fragment() {
         super.onDestroyView()
     }
 
+    fun isInternetAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
+
+        return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }
 
     fun String.toEditable(): Editable = Editable.Factory.getInstance().newEditable(this)
 
@@ -317,10 +332,8 @@ class Home : Fragment() {
 
         if (bitmap==null){
             Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
+                progressBar.visibility = View.GONE
             return false
-        }else{
-            Log.println(Log.ERROR,"Translate Current Gesture","Bitmap is not Null")
-//            saveBitmap(bitmap)
         }
 
 //        saveBitmap(bitmap)
@@ -329,6 +342,7 @@ class Home : Fragment() {
 
         if (detection==null){
             Log.println(Log.ERROR,"Translate Current Gesture", "Detection is null")
+                progressBar.visibility = View.GONE
             return false
         }
 
@@ -343,6 +357,7 @@ class Home : Fragment() {
                 "Translate Current Gesture",
                 "Score: "+ detection.score.toString()
             )
+                progressBar.visibility = View.GONE
             return false
         }
 
@@ -352,6 +367,7 @@ class Home : Fragment() {
         var letter = alphabetMap[detection.classId]
 
         translatedTextView.append(letter)
+            progressBar.visibility = View.GONE
         return true
     }
 

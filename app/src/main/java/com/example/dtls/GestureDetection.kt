@@ -17,11 +17,9 @@ class GestureDetection private constructor(private val context: Context){
     public var models: Array<String> = arrayOf(
         "optimized_b4nms.pth",
         "optimized_b4nms.pt",
-        "yolov8n.pt",
-        "hub_torch_script.pt",
-        "best.torchscript",
-        "optimized_torchscript_b4_nms_model.pt",
-        "optimized_torchscript_b4_nms_model.pth")
+        "optimized_2k.pth",
+        "optimized_2k_int.ptl",
+        )
 
     public val model = 0
     public var threshold: Float = 0.65f
@@ -75,6 +73,7 @@ class GestureDetection private constructor(private val context: Context){
             Log.println(Log.ERROR,"In getTranslation" ,"detection")
         }else{
             Log.println(Log.ERROR,"In getTranslation" ,detection.toString())
+            Log.println(Log.ERROR,"In getTranslation" ,x.toTensor().toString())
 
         }
 
