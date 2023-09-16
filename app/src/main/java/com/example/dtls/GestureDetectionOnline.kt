@@ -23,8 +23,11 @@ class GestureDetectionOnline private constructor(private val context: Context){
     public var models: Array<String> = arrayOf(
         "deteccion-y-traduccion-de-lenguaje-de-senas-chilena/2", // 6k
         "deteccion-y-traduccion-de-lenguaje-de-senas-chilena/9", // 3k
+        "deteccion-y-traduccion-de-lenguaje-de-senas-chilena/10",// 2k
+        "deteccion-y-traduccion-de-lenguaje-de-senas-chilena/12", // 6K CU NN LA
+        "deteccion-y-traduccion-de-lenguaje-de-senas-chilena/15", // 6K CU NN HA
     )
-    public var model:Int = 1
+    public var model:Int = 4
     private var apiKey:String = "hO4rKeR6jM4wx0Shoexg"
 
     // each RoboFlow predictions flows this object format
