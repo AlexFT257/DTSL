@@ -9,7 +9,6 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
 import android.os.Environment
-import android.text.Editable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -18,9 +17,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -39,7 +36,6 @@ import org.pytorch.Module
 import org.pytorch.torchvision.TensorImageUtils
 import java.io.File
 import java.io.FileOutputStream
-import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 
 
@@ -125,11 +121,11 @@ class Home : Fragment() {
 
         translateButton.setOnClickListener{
             progressBar.visibility = View.VISIBLE
+
             if(isInternetAvailable(requireContext())){
                 trasnlateCurrenteGestureOnline()
             } else{
                 translateCurrentGesture()
-                progressBar.visibility = View.GONE
             }
         }
 
@@ -158,7 +154,7 @@ class Home : Fragment() {
         }
 
         // thread in charge of the translation
-        translationThread = Thread{
+        /*translationThread = Thread{
             while (true){
                 if(!isTranslating){
                     continue
@@ -185,7 +181,7 @@ class Home : Fragment() {
                 }
                 Thread.sleep(1000)
             }
-        }
+        }*/
 
 
 
@@ -206,20 +202,6 @@ class Home : Fragment() {
         val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
 
         return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-    }
-
-    fun String.toEditable(): Editable = Editable.Factory.getInstance().newEditable(this)
-
-    private fun imageProxyToBitmap(imageProxy: ImageProxy):Bitmap?{
-        val planeProxy = imageProxy.planes[0]
-        val buffer: ByteBuffer= planeProxy.buffer
-        val bytes = ByteArray(buffer.remaining())
-        buffer.get()
-        return BitmapFactory.decodeByteArray(bytes,0,bytes.size)
-    }
-
-    fun makeToast(string: String){
-        Toast.makeText(requireContext(),string,Toast.LENGTH_SHORT)
     }
 
     fun trasnlateCurrenteGestureOnline(){
@@ -257,8 +239,6 @@ class Home : Fragment() {
             for (prediction in predictions){
                 Log.d("Prediction",prediction.toString())
             }
-
-
 
             // debug
             requireActivity().runOnUiThread {
@@ -326,38 +306,150 @@ class Home : Fragment() {
             }
         }
     }
-    fun translateCurrentGesture():Boolean{
+
+    fun translateCurrentGesture(){
+        var bitmap = getImage()
+        GlobalScope.launch {
+
+            if (bitmap==null){
+                Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
+                requireActivity().runOnUiThread {
+                    progressBar.visibility = View.GONE
+                }
+                return@launch
+            }
+
+            var predictions= withContext(Dispatchers.IO){
+                gestureDetection.getTranslation(bitmap)
+            }
+
+
+
+            if (predictions.isNullOrEmpty()){
+                requireActivity().runOnUiThread {
+                    Log.d("Prediction","No se detecto ningun gesto")
+
+                    // reset the view and content if nothing was found
+                    progressBar.visibility = View.GONE
+                    suggestionTextView.visibility =View.GONE
+                    optionContainer.visibility = View.GONE
+
+                    // delete previous buttons
+                    optionContainer.removeAllViews()
+                    optionButtons.clear()
+                }
+                return@launch
+            }
+
+            for (prediction in predictions){
+                Log.d("Prediction",prediction.toString())
+            }
+
+            // debug
+            requireActivity().runOnUiThread {
+                debugScore.text = predictions[0].score.toString()
+                debugClassId.text = predictions[0].classId.toString()
+                debugBoundigBox.text =
+                    "x: ${predictions[0].boundingBox.centerX()}\n"+"y: ${predictions[0].boundingBox.centerY()}\n"+
+                            "width: ${predictions[0].boundingBox.width()}\n" + "height: ${predictions[0].boundingBox.height()}"
+            }
+
+            Log.println(
+                Log.ERROR,
+                "Translate Current Gesture",
+                "Score: "+ predictions[0].score.toString()
+            )
+            if(predictions[0].score < gestureDetection.threshold){
+                requireActivity().runOnUiThread {
+                    progressBar.visibility = View.GONE
+                    suggestionTextView.visibility =View.VISIBLE
+                    optionContainer.visibility = View.VISIBLE
+
+                    // delete previous buttons
+                    optionContainer.removeAllViews()
+                    optionButtons.clear()
+
+                    val maxButtonsToShow = 3
+                    for ((index,prediction) in predictions.withIndex()){
+                        if (index>=maxButtonsToShow){
+                            break
+                        }
+
+                        val optionButton = MaterialButton(requireContext())
+                        optionButton.text = "${alphabetMap[prediction.classId]}"
+
+                        optionButton.setOnClickListener {
+                            translatedTextView.append(alphabetMap[prediction.classId])
+
+                            for (button in optionButtons){
+                                optionContainer.removeView(button)
+                            }
+                            optionButtons.clear()
+                            optionContainer.visibility = View.GONE
+                            suggestionTextView.visibility = View.GONE
+                        }
+
+                        // add the button to the list and container
+                        optionButtons.add(optionButton)
+                        optionContainer.addView(optionButton)
+                    }
+                }
+                return@launch
+            }
+
+            requireActivity().runOnUiThread {
+                translatedTextView.append(alphabetMap[predictions[0].classId])
+
+                // reset the view and content if nothing was found
+                progressBar.visibility = View.GONE
+                suggestionTextView.visibility =View.GONE
+                optionContainer.visibility = View.GONE
+
+                // delete previous buttons
+                optionContainer.removeAllViews()
+                optionButtons.clear()
+            }
+        }
+    }
+
+    /*fun translateCurrentGesture():Boolean{
 
         var bitmap = getImage()
 
         if (bitmap==null){
             Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
+            requireActivity().runOnUiThread {
                 progressBar.visibility = View.GONE
+            }
             return false
         }
 
-//        saveBitmap(bitmap)
-
         var detection = gestureDetection.getTranslation(bitmap)
 
-        if (detection==null){
+        if (detection.isNullOrEmpty()){
             Log.println(Log.ERROR,"Translate Current Gesture", "Detection is null")
+            requireActivity().runOnUiThread {
                 progressBar.visibility = View.GONE
+            }
             return false
         }
 
         // debug
-        debugScore.text = detection.score.toString()
-        debugClassId.text = detection.classId.toString() +" = "+ alphabetMap[detection.classId]
-        debugBoundigBox.text = detection.boundingBox.toString()
+        requireActivity().runOnUiThread {
+            debugScore.text = detection[0].score.toString()
+            debugClassId.text = detection[0].classId.toString() +" = "+ alphabetMap[detection.classId]
+            debugBoundigBox.text = detection[0].boundingBox.toString()
+        }
 
-        if(detection.score < gestureDetection.threshold){
+        if(detection[0].score < gestureDetection.threshold){
             Log.println(
                 Log.ERROR,
                 "Translate Current Gesture",
-                "Score: "+ detection.score.toString()
+                "Score: "+ detection.score[0].toString()
             )
+            requireActivity().runOnUiThread {
                 progressBar.visibility = View.GONE
+            }
             return false
         }
 
@@ -367,13 +459,12 @@ class Home : Fragment() {
         var letter = alphabetMap[detection.classId]
 
         translatedTextView.append(letter)
+        requireActivity().runOnUiThread {
             progressBar.visibility = View.GONE
+        }
         return true
-    }
+    }*/
 
-    fun checkGrammar(string: String): String {
-        return "a"
-    }
 
     private var count: Int = 0
     fun saveBitmap(bitmap: Bitmap){
@@ -469,31 +560,14 @@ class Home : Fragment() {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
-
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             cameraProvider.unbindAll()
-//            preview.setSurfaceProvider(previewView.surfaceProvider)
 
             cameraProvider.bindToLifecycle(this , cameraSelector, preview)
 
         }, ContextCompat.getMainExecutor(requireContext()))
     }
-
-    fun bindPreview(cameraProvider : ProcessCameraProvider) {
-        var preview : Preview = Preview.Builder()
-            .build()
-
-        var cameraSelector : CameraSelector = CameraSelector.Builder()
-            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-            .build()
-
-        preview.setSurfaceProvider(previewView.surfaceProvider)
-
-        var camera = cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview)
-    }
-
-
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
