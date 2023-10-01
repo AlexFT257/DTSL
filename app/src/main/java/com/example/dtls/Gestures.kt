@@ -5,9 +5,9 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.example.dtls.R
+import android.content.Context
+import android.content.SharedPreferences
 
 class Gestures : Fragment() {
 
@@ -27,11 +27,17 @@ class Gestures : Fragment() {
             resources.getIdentifier(resourceName, "drawable", requireContext().packageName)
         }
 
+        // Get SharedPreferences
+        val sharedPreferences = requireActivity().getPreferences(Context.MODE_PRIVATE)
+
         // Configuring RecyclerView
         val layoutManager = LinearLayoutManager(requireContext())
-        val adapter = MyAdapter(alphabetList, imageResources, recyclerView)
+        val adapter = MyAdapter(alphabetList, imageResources, sharedPreferences)
         recyclerView.layoutManager = layoutManager
         recyclerView.adapter = adapter
+
+        // Set the RecyclerView in the adapter to enable smooth scrolling
+        adapter.setRecyclerView(recyclerView)
 
         return view
     }
