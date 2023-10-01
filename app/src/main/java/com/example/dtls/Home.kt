@@ -8,7 +8,6 @@ import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
-import android.os.Environment
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -24,7 +23,6 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.button.MaterialButton
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.Dispatchers
@@ -34,8 +32,6 @@ import kotlinx.coroutines.withContext
 import org.pytorch.IValue
 import org.pytorch.Module
 import org.pytorch.torchvision.TensorImageUtils
-import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.Executors
 
 
@@ -89,14 +85,6 @@ class Home : Fragment() {
         // Inflate the layout for this fragment
         val rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
-        /*if(ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.CAMERA
-            )!= PackageManager.PERMISSION_GRANTED){
-            val dialogFragment = PermissionDialogFragment()
-            dialogFragment.show(childFragmentManager,"Permisos Dialog")
-        }*/
-
         previewView = rootView.findViewById<PreviewView>(R.id.previewView)
         translatedTextView= rootView.findViewById<EditText>(R.id.translatedText)
         debugScore = rootView.findViewById<TextView>(R.id.textScore)
@@ -106,7 +94,6 @@ class Home : Fragment() {
         progressBar = rootView.findViewById<ProgressBar>(R.id.progressCircular)
         optionContainer = rootView.findViewById(R.id.optionContainer)
         suggestionTextView = rootView.findViewById(R.id.suggestionTextView)
-
 
 
         val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
@@ -152,38 +139,6 @@ class Home : Fragment() {
         reloadButton.setOnClickListener{
             testRedNeuronal(rootView)
         }
-
-        // thread in charge of the translation
-        /*translationThread = Thread{
-            while (true){
-                if(!isTranslating){
-                    continue
-                }
-                Log.println(
-                    Log.DEBUG,
-                    "Trans Thread",
-                    "Is translating" +isTranslating.toString())
-                currentTime = System.currentTimeMillis()
-                val isLetter =  translateCurrentGesture()
-                if(isLetter){
-                    timeSinceLastTranslation = System.currentTimeMillis() - currentTime
-
-                    // if the last char is a " " do not add the " "
-                    val lastChar = translatedTextView.text.last()
-                    if(lastChar.equals(" ")){
-                        continue
-                    }
-                    // if the time since the last valid translation is less than
-                    // the constant add a " "
-                    if(timeSinceLastTranslation> timeUntilWhiteSpace){
-                        translatedTextView.text.append(" ")
-                    }
-                }
-                Thread.sleep(1000)
-            }
-        }*/
-
-
 
         return rootView
     }
@@ -255,6 +210,7 @@ class Home : Fragment() {
                 "Score: "+ predictions[0].confidence.toString()
             )
             if(predictions[0].confidence < gestureDetectionOnline.threshold){
+                Log.println(Log.DEBUG,"Home","online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}, conf: ${predictions[0].confidence}")
                 requireActivity().runOnUiThread {
                     progressBar.visibility = View.GONE
                     suggestionTextView.visibility =View.VISIBLE
@@ -409,84 +365,6 @@ class Home : Fragment() {
                 optionContainer.removeAllViews()
                 optionButtons.clear()
             }
-        }
-    }
-
-    /*fun translateCurrentGesture():Boolean{
-
-        var bitmap = getImage()
-
-        if (bitmap==null){
-            Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
-            requireActivity().runOnUiThread {
-                progressBar.visibility = View.GONE
-            }
-            return false
-        }
-
-        var detection = gestureDetection.getTranslation(bitmap)
-
-        if (detection.isNullOrEmpty()){
-            Log.println(Log.ERROR,"Translate Current Gesture", "Detection is null")
-            requireActivity().runOnUiThread {
-                progressBar.visibility = View.GONE
-            }
-            return false
-        }
-
-        // debug
-        requireActivity().runOnUiThread {
-            debugScore.text = detection[0].score.toString()
-            debugClassId.text = detection[0].classId.toString() +" = "+ alphabetMap[detection.classId]
-            debugBoundigBox.text = detection[0].boundingBox.toString()
-        }
-
-        if(detection[0].score < gestureDetection.threshold){
-            Log.println(
-                Log.ERROR,
-                "Translate Current Gesture",
-                "Score: "+ detection.score[0].toString()
-            )
-            requireActivity().runOnUiThread {
-                progressBar.visibility = View.GONE
-            }
-            return false
-        }
-
-//            drawRectangleOverlay(detection.boundingBox)
-
-
-        var letter = alphabetMap[detection.classId]
-
-        translatedTextView.append(letter)
-        requireActivity().runOnUiThread {
-            progressBar.visibility = View.GONE
-        }
-        return true
-    }*/
-
-
-    private var count: Int = 0
-    fun saveBitmap(bitmap: Bitmap){
-        var myDir = Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_PICTURES)
-
-        try {
-            myDir.mkdir()
-
-
-            var fileName = "$count.jpg"
-            var file =File(myDir,fileName)
-
-            var resizedBitmap = gestureDetection.resizeBitmap(bitmap)
-
-            count++;
-            var out = FileOutputStream(file)
-            resizedBitmap.compress(Bitmap.CompressFormat.JPEG,100,out)
-            out.flush()
-            out.close()
-        }catch (exc: Exception){
-            Log.println(Log.ERROR,"save Bitmap", exc.toString())
         }
     }
 

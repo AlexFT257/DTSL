@@ -4,6 +4,7 @@ import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.os.Bundle
 import android.text.method.LinkMovementMethod
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -52,9 +53,9 @@ class Settings : Fragment(), FontSizeChangeListener {
 
         // definir OnChange method para el slider
         thresholdSlider.addOnChangeListener(Slider.OnChangeListener { slider, value, fromUser ->
-            gestureDetection.threshold = value
-            gestureDetectionOnline.threshold = value
-//            Log.println(Log.DEBUG,"Slider","online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}")
+            gestureDetection.threshold = value/100
+            gestureDetectionOnline.threshold = value/100
+            Log.println(Log.DEBUG,"Slider","online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}")
         })
 
         // Manejar el clic en el botón "Aplicar"
