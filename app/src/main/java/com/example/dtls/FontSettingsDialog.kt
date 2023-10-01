@@ -1,17 +1,22 @@
 import android.app.Dialog
-import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.LayoutInflater
-import android.view.View
 import android.widget.Button
-import android.widget.RadioButton
 import android.widget.RadioGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
 import com.example.dtls.R
 
-class FontSettingsDialog(private val sharedPreferences: SharedPreferences) : DialogFragment() {
+// Interfaz para escuchar cambios en el tamaño de fuente
+interface FontSizeChangeListener {
+    fun onFontSizeChanged(fontSize: Int)
+}
+
+class FontSettingsDialog(
+    private val sharedPreferences: SharedPreferences,
+    private val fontSizeChangeListener: FontSizeChangeListener // Agrega el parámetro al constructor
+) : DialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val builder = AlertDialog.Builder(requireContext())
@@ -42,6 +47,9 @@ class FontSettingsDialog(private val sharedPreferences: SharedPreferences) : Dia
 
             // Guardar el nuevo tamaño de fuente en las preferencias compartidas
             saveFontSizeToPreferences(newFontSize)
+
+            // Notificar al listener sobre el cambio en el tamaño de fuente
+            fontSizeChangeListener.onFontSizeChanged(newFontSize)
 
             // Cerrar el diálogo
             dismiss()

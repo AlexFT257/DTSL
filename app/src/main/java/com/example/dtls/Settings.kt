@@ -1,59 +1,103 @@
-package com.example.dtls
-
+import android.content.Context
+import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Button
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
+import com.example.dtls.R
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
+class Settings : Fragment(), FontSizeChangeListener {
 
-/**
- * A simple [Fragment] subclass.
- * Use the [Settings.newInstance] factory method to
- * create an instance of this fragment.
- */
-class Settings : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
-        }
-    }
+    private lateinit var sharedPreferences: SharedPreferences
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        // Inflate the layout for this fragment
+        // Infla el diseño de fragment_settings.xml
         return inflater.inflate(R.layout.fragment_settings, container, false)
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment Settings.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            Settings().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        // Inicializa las preferencias compartidas
+        sharedPreferences = requireActivity().getPreferences(Context.MODE_PRIVATE)
+
+        // Encuentra vistas en el diseño
+        val btnOpenFontSettings = view.findViewById<Button>(R.id.btnOpenFontSettings)
+        val textViewExample = view.findViewById<TextView>(R.id.textViewExample)
+        val btnChangeTheme = view.findViewById<Button>(R.id.btnChangeTheme)
+
+        // Manejar el clic en el botón "Aplicar"
+        btnOpenFontSettings.setOnClickListener {
+            // Abre el diálogo de configuración de fuente
+            val fontSettingsDialog = FontSettingsDialog(sharedPreferences, this)
+            fontSettingsDialog.show(parentFragmentManager, "FontSettingsDialog")
+        }
+
+        // Manejar el clic en el botón "Cambiar Tema"
+        btnChangeTheme.setOnClickListener {
+            val currentNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+
+            // Cambiar al tema opuesto al modo actual
+            val newNightMode = when (currentNightMode) {
+                Configuration.UI_MODE_NIGHT_YES -> AppCompatDelegate.MODE_NIGHT_NO
+                Configuration.UI_MODE_NIGHT_NO -> AppCompatDelegate.MODE_NIGHT_YES
+                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM // Opcional, seguir el modo del sistema
             }
+
+            // Establecer el nuevo modo de noche
+            AppCompatDelegate.setDefaultNightMode(newNightMode)
+
+            // Reiniciar la actividad o fragmento actual para aplicar el cambio de tema
+            requireActivity().recreate()
+        }
+
+        // Aplicar el tamaño de fuente predeterminado al cargar el fragmento
+        applyFontSize(getFontSizeFromPreferences(), textViewExample)
+    }
+
+    // Función para aplicar el tamaño de fuente en tus elementos de vista
+    private fun applyFontSize(fontSize: Int, textViewExample: TextView) {
+        // Ajusta el tamaño de fuente en función de `fontSize`
+        when (fontSize) {
+            FontSettingsDialog.SMALL_FONT_SIZE -> {
+                textViewExample.textSize = 14f // Tamaño pequeño
+                textViewExample.text = "Texto de ejemplo (Pequeño)"
+            }
+            FontSettingsDialog.MEDIUM_FONT_SIZE -> {
+                textViewExample.textSize = 18f // Tamaño mediano
+                textViewExample.text = "Texto de ejemplo (Mediano)"
+            }
+            FontSettingsDialog.LARGE_FONT_SIZE -> {
+                textViewExample.textSize = 24f // Tamaño grande
+                textViewExample.text = "Texto de ejemplo (Grande)"
+            }
+            else -> {
+                // Tamaño de fuente predeterminado si no se encuentra el valor en las preferencias
+                textViewExample.textSize = 18f
+                textViewExample.text = "Texto de ejemplo (Mediano)"
+            }
+        }
+    }
+
+    // Función para obtener el tamaño de fuente de las preferencias compartidas
+    private fun getFontSizeFromPreferences(): Int {
+        // Obtén el tamaño de fuente de las preferencias compartidas (deberías implementar esto)
+        // Por ejemplo, si almacenaste el tamaño de fuente en las preferencias como "fontSize":
+        return sharedPreferences.getInt(FontSettingsDialog.KEY_FONT_SIZE, FontSettingsDialog.MEDIUM_FONT_SIZE)
+    }
+
+    // Implementar la interfaz FontSizeChangeListener
+    override fun onFontSizeChanged(fontSize: Int) {
+        // Aquí puedes reaccionar a cambios en el tamaño de fuente si es necesario
+        // Por ejemplo, podrías volver a cargar la vista con el nuevo tamaño de fuente
+        applyFontSize(fontSize, requireView().findViewById(R.id.textViewExample))
     }
 }

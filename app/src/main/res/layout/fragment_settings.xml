@@ -1,14 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- fragment_settings.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".Settings">
+    android:orientation="vertical"
+    android:gravity="start">
 
-    <!-- TODO: Update blank fragment layout -->
     <TextView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:text="Settings Fragment" />
+        android:id="@+id/textView2"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Configuración"
+        android:textSize="20dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="20dp"
+        android:layout_gravity="center_vertical|start"
+        android:layout_marginBottom="16dp" />
 
-</FrameLayout>
+    <Button
+        android:id="@+id/btnOpenFontSettings"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Configurar fuente"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp" />
+
+    <TextView
+        android:id="@+id/textViewExample"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Texto de ejemplo"
+        android:layout_marginStart="40dp" />
+
+    <Button
+        android:id="@+id/btnChangeTheme"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Cambiar Tema"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp" />
+
+</LinearLayout>

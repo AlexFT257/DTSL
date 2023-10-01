@@ -2,6 +2,7 @@ package com.example.dtls
 
 import android.Manifest
 import Gestures
+import Settings
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -65,6 +66,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.settings -> replaceFragment(Settings())
                 else ->{}
             }
+            
             true
         }
 
