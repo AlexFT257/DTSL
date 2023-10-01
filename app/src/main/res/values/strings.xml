@@ -5,4 +5,5 @@
     <string name="opciones">Opciones</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="txtCredits">Aplicacion desarrollada por <a href="https://github.com/Nelruu">Nelson Rubio</a> y <a href="https://github.com/AlexFT257">Alex Tardon</a>\n Para la Universidad del Bio-Bio</string>
 </resources>

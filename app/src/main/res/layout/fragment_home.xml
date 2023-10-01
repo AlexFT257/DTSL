@@ -11,32 +11,31 @@
     <androidx.cardview.widget.CardView
         android:id="@+id/cardView"
         android:layout_width="match_parent"
-        android:layout_height="250dp"
+        android:layout_height="300dp"
         android:layout_gravity="top|center"
         app:cardCornerRadius="20dp"
         app:cardElevation="4dp"
-        app:cardUseCompatPadding="true"
-        >
+        app:cardUseCompatPadding="true">
 
         <View
             android:id="@+id/overlayView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent" />
+
         <androidx.camera.view.PreviewView
             android:id="@+id/previewView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" >
+            android:layout_height="match_parent">
 
         </androidx.camera.view.PreviewView>
-
 
 
     </androidx.cardview.widget.CardView>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="top"
+        android:layout_height="424dp"
+        android:layout_gravity="bottom"
         android:layout_marginTop="250dp">
 
 
@@ -147,16 +146,16 @@
 
 
         <LinearLayout
-            android:gravity="top"
-
             android:id="@+id/optionContainer"
+
             android:layout_width="111dp"
             android:layout_height="110dp"
             android:layout_marginStart="16dp"
             android:layout_marginTop="12dp"
+            android:gravity="top"
+            android:orientation="vertical"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/suggestionTextView"
-            android:orientation="vertical">
+            app:layout_constraintTop_toBottomOf="@+id/suggestionTextView">
 
         </LinearLayout>
 

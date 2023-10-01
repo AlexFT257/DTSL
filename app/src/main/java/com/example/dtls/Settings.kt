@@ -1,7 +1,9 @@
+
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.os.Bundle
+import android.text.method.LinkMovementMethod
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,11 +11,16 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.fragment.app.Fragment
+import com.example.dtls.GestureDetection
+import com.example.dtls.GestureDetectionOnline
 import com.example.dtls.R
+import com.google.android.material.slider.Slider
 
 class Settings : Fragment(), FontSizeChangeListener {
 
     private lateinit var sharedPreferences: SharedPreferences
+    private lateinit var gestureDetectionOnline: GestureDetectionOnline
+    private lateinit var gestureDetection: GestureDetection
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -33,6 +40,22 @@ class Settings : Fragment(), FontSizeChangeListener {
         val btnOpenFontSettings = view.findViewById<Button>(R.id.btnOpenFontSettings)
         val textViewExample = view.findViewById<TextView>(R.id.textViewExample)
         val btnChangeTheme = view.findViewById<Button>(R.id.btnChangeTheme)
+        val creditText = view.findViewById<TextView>(R.id.textCredits)
+        var thresholdSlider = view.findViewById<Slider>(R.id.thresholdSider)
+
+        // para que se pueda acceder al github de cada uno
+        creditText.movementMethod = LinkMovementMethod.getInstance()
+
+        // buscando las instancias para modificarlas
+        gestureDetection = GestureDetection.getInstance(requireContext())
+        gestureDetectionOnline = GestureDetectionOnline.getInstance(requireContext())
+
+        // definir OnChange method para el slider
+        thresholdSlider.addOnChangeListener(Slider.OnChangeListener { slider, value, fromUser ->
+            gestureDetection.threshold = value
+            gestureDetectionOnline.threshold = value
+//            Log.println(Log.DEBUG,"Slider","online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}")
+        })
 
         // Manejar el clic en el botón "Aplicar"
         btnOpenFontSettings.setOnClickListener {
