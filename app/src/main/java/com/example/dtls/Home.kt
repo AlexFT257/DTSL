@@ -69,9 +69,9 @@ class Home : Fragment() {
 
 
     // debug textview
-    private lateinit var debugClassId: TextView
-    private lateinit var debugScore: TextView
-    private lateinit var debugBoundigBox: TextView
+    lateinit var debugClassId: TextView
+    lateinit var debugScore: TextView
+    lateinit var debugBoundigBox: TextView
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +95,9 @@ class Home : Fragment() {
         optionContainer = rootView.findViewById(R.id.optionContainer)
         suggestionTextView = rootView.findViewById(R.id.suggestionTextView)
 
+        debugScore.visibility = View.GONE
+        debugClassId.visibility = View.GONE
+        debugBoundigBox.visibility = View.GONE
 
         val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
         val translateButton = rootView.findViewById<MaterialButton>(R.id.translateButton)
