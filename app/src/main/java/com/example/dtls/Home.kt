@@ -1,15 +1,15 @@
 package com.example.dtls
 
+import FontSizeChangeListener
 import android.Manifest
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Bundle
-import android.os.Environment
-import android.text.Editable
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -18,16 +18,13 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import android.widget.Toast
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.LifecycleOwner
 import com.google.android.material.button.MaterialButton
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.Dispatchers
@@ -37,15 +34,13 @@ import kotlinx.coroutines.withContext
 import org.pytorch.IValue
 import org.pytorch.Module
 import org.pytorch.torchvision.TensorImageUtils
-import java.io.File
-import java.io.FileOutputStream
-import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 
 
-class Home : Fragment() {
+class Home : Fragment(), FontSizeChangeListener{
 
     private val executor = Executors.newSingleThreadExecutor()
+    private lateinit var sharedPreferences: SharedPreferences
     private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
     private lateinit var translatedTextView: EditText
     private lateinit var previewView : PreviewView
@@ -77,9 +72,9 @@ class Home : Fragment() {
 
 
     // debug textview
-    private lateinit var debugClassId: TextView
-    private lateinit var debugScore: TextView
-    private lateinit var debugBoundigBox: TextView
+    lateinit var debugClassId: TextView
+    lateinit var debugScore: TextView
+    lateinit var debugBoundigBox: TextView
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,14 +88,7 @@ class Home : Fragment() {
         // Inflate the layout for this fragment
         val rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
-        /*if(ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.CAMERA
-            )!= PackageManager.PERMISSION_GRANTED){
-            val dialogFragment = PermissionDialogFragment()
-            dialogFragment.show(childFragmentManager,"Permisos Dialog")
-        }*/
-
+        sharedPreferences = requireActivity().getPreferences(Context.MODE_PRIVATE)
         previewView = rootView.findViewById<PreviewView>(R.id.previewView)
         translatedTextView= rootView.findViewById<EditText>(R.id.translatedText)
         debugScore = rootView.findViewById<TextView>(R.id.textScore)
@@ -111,7 +99,9 @@ class Home : Fragment() {
         optionContainer = rootView.findViewById(R.id.optionContainer)
         suggestionTextView = rootView.findViewById(R.id.suggestionTextView)
 
-
+        debugScore.visibility = View.GONE
+        debugClassId.visibility = View.GONE
+        debugBoundigBox.visibility = View.GONE
 
         val reloadButton = rootView.findViewById<MaterialButton>(R.id.reloadButton)
         val translateButton = rootView.findViewById<MaterialButton>(R.id.translateButton)
@@ -125,11 +115,11 @@ class Home : Fragment() {
 
         translateButton.setOnClickListener{
             progressBar.visibility = View.VISIBLE
+
             if(isInternetAvailable(requireContext())){
                 trasnlateCurrenteGestureOnline()
             } else{
                 translateCurrentGesture()
-                progressBar.visibility = View.GONE
             }
         }
 
@@ -157,37 +147,7 @@ class Home : Fragment() {
             testRedNeuronal(rootView)
         }
 
-        // thread in charge of the translation
-        translationThread = Thread{
-            while (true){
-                if(!isTranslating){
-                    continue
-                }
-                Log.println(
-                    Log.DEBUG,
-                    "Trans Thread",
-                    "Is translating" +isTranslating.toString())
-                currentTime = System.currentTimeMillis()
-                val isLetter =  translateCurrentGesture()
-                if(isLetter){
-                    timeSinceLastTranslation = System.currentTimeMillis() - currentTime
-
-                    // if the last char is a " " do not add the " "
-                    val lastChar = translatedTextView.text.last()
-                    if(lastChar.equals(" ")){
-                        continue
-                    }
-                    // if the time since the last valid translation is less than
-                    // the constant add a " "
-                    if(timeSinceLastTranslation> timeUntilWhiteSpace){
-                        translatedTextView.text.append(" ")
-                    }
-                }
-                Thread.sleep(1000)
-            }
-        }
-
-
+        applyFontSize(getFontSizeFromPreferences(), translatedTextView, suggestionTextView)
 
         return rootView
     }
@@ -206,20 +166,6 @@ class Home : Fragment() {
         val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
 
         return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-    }
-
-    fun String.toEditable(): Editable = Editable.Factory.getInstance().newEditable(this)
-
-    private fun imageProxyToBitmap(imageProxy: ImageProxy):Bitmap?{
-        val planeProxy = imageProxy.planes[0]
-        val buffer: ByteBuffer= planeProxy.buffer
-        val bytes = ByteArray(buffer.remaining())
-        buffer.get()
-        return BitmapFactory.decodeByteArray(bytes,0,bytes.size)
-    }
-
-    fun makeToast(string: String){
-        Toast.makeText(requireContext(),string,Toast.LENGTH_SHORT)
     }
 
     fun trasnlateCurrenteGestureOnline(){
@@ -258,8 +204,6 @@ class Home : Fragment() {
                 Log.d("Prediction",prediction.toString())
             }
 
-
-
             // debug
             requireActivity().runOnUiThread {
                 debugScore.text = predictions[0].confidence.toString()
@@ -275,6 +219,7 @@ class Home : Fragment() {
                 "Score: "+ predictions[0].confidence.toString()
             )
             if(predictions[0].confidence < gestureDetectionOnline.threshold){
+                Log.println(Log.DEBUG,"Home","online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}, conf: ${predictions[0].confidence}")
                 requireActivity().runOnUiThread {
                     progressBar.visibility = View.GONE
                     suggestionTextView.visibility =View.VISIBLE
@@ -326,76 +271,109 @@ class Home : Fragment() {
             }
         }
     }
-    fun translateCurrentGesture():Boolean{
 
+    fun translateCurrentGesture(){
         var bitmap = getImage()
+        GlobalScope.launch {
 
-        if (bitmap==null){
-            Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
-                progressBar.visibility = View.GONE
-            return false
-        }
+            if (bitmap==null){
+                Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
+                requireActivity().runOnUiThread {
+                    progressBar.visibility = View.GONE
+                }
+                return@launch
+            }
 
-//        saveBitmap(bitmap)
+            var predictions= withContext(Dispatchers.IO){
+                gestureDetection.getTranslation(bitmap)
+            }
 
-        var detection = gestureDetection.getTranslation(bitmap)
 
-        if (detection==null){
-            Log.println(Log.ERROR,"Translate Current Gesture", "Detection is null")
-                progressBar.visibility = View.GONE
-            return false
-        }
 
-        // debug
-        debugScore.text = detection.score.toString()
-        debugClassId.text = detection.classId.toString() +" = "+ alphabetMap[detection.classId]
-        debugBoundigBox.text = detection.boundingBox.toString()
+            if (predictions.isNullOrEmpty()){
+                requireActivity().runOnUiThread {
+                    Log.d("Prediction","No se detecto ningun gesto")
 
-        if(detection.score < gestureDetection.threshold){
+                    // reset the view and content if nothing was found
+                    progressBar.visibility = View.GONE
+                    suggestionTextView.visibility =View.GONE
+                    optionContainer.visibility = View.GONE
+
+                    // delete previous buttons
+                    optionContainer.removeAllViews()
+                    optionButtons.clear()
+                }
+                return@launch
+            }
+
+            for (prediction in predictions){
+                Log.d("Prediction",prediction.toString())
+            }
+
+            // debug
+            requireActivity().runOnUiThread {
+                debugScore.text = predictions[0].score.toString()
+                debugClassId.text = predictions[0].classId.toString()
+                debugBoundigBox.text =
+                    "x: ${predictions[0].boundingBox.centerX()}\n"+"y: ${predictions[0].boundingBox.centerY()}\n"+
+                            "width: ${predictions[0].boundingBox.width()}\n" + "height: ${predictions[0].boundingBox.height()}"
+            }
+
             Log.println(
                 Log.ERROR,
                 "Translate Current Gesture",
-                "Score: "+ detection.score.toString()
+                "Score: "+ predictions[0].score.toString()
             )
+            if(predictions[0].score < gestureDetection.threshold){
+                requireActivity().runOnUiThread {
+                    progressBar.visibility = View.GONE
+                    suggestionTextView.visibility =View.VISIBLE
+                    optionContainer.visibility = View.VISIBLE
+
+                    // delete previous buttons
+                    optionContainer.removeAllViews()
+                    optionButtons.clear()
+
+                    val maxButtonsToShow = 3
+                    for ((index,prediction) in predictions.withIndex()){
+                        if (index>=maxButtonsToShow){
+                            break
+                        }
+
+                        val optionButton = MaterialButton(requireContext())
+                        optionButton.text = "${alphabetMap[prediction.classId]}"
+
+                        optionButton.setOnClickListener {
+                            translatedTextView.append(alphabetMap[prediction.classId])
+
+                            for (button in optionButtons){
+                                optionContainer.removeView(button)
+                            }
+                            optionButtons.clear()
+                            optionContainer.visibility = View.GONE
+                            suggestionTextView.visibility = View.GONE
+                        }
+
+                        // add the button to the list and container
+                        optionButtons.add(optionButton)
+                        optionContainer.addView(optionButton)
+                    }
+                }
+                return@launch
+            }
+
+            requireActivity().runOnUiThread {
+                translatedTextView.append(alphabetMap[predictions[0].classId])
+
+                // reset the view and content if nothing was found
                 progressBar.visibility = View.GONE
-            return false
-        }
+                suggestionTextView.visibility =View.GONE
+                optionContainer.visibility = View.GONE
 
-//            drawRectangleOverlay(detection.boundingBox)
-
-
-        var letter = alphabetMap[detection.classId]
-
-        translatedTextView.append(letter)
-            progressBar.visibility = View.GONE
-        return true
-    }
-
-    fun checkGrammar(string: String): String {
-        return "a"
-    }
-
-    private var count: Int = 0
-    fun saveBitmap(bitmap: Bitmap){
-        var myDir = Environment.getExternalStoragePublicDirectory(
-            Environment.DIRECTORY_PICTURES)
-
-        try {
-            myDir.mkdir()
-
-
-            var fileName = "$count.jpg"
-            var file =File(myDir,fileName)
-
-            var resizedBitmap = gestureDetection.resizeBitmap(bitmap)
-
-            count++;
-            var out = FileOutputStream(file)
-            resizedBitmap.compress(Bitmap.CompressFormat.JPEG,100,out)
-            out.flush()
-            out.close()
-        }catch (exc: Exception){
-            Log.println(Log.ERROR,"save Bitmap", exc.toString())
+                // delete previous buttons
+                optionContainer.removeAllViews()
+                optionButtons.clear()
+            }
         }
     }
 
@@ -469,35 +447,55 @@ class Home : Fragment() {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
 
-
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             cameraProvider.unbindAll()
-//            preview.setSurfaceProvider(previewView.surfaceProvider)
 
             cameraProvider.bindToLifecycle(this , cameraSelector, preview)
 
         }, ContextCompat.getMainExecutor(requireContext()))
     }
 
-    fun bindPreview(cameraProvider : ProcessCameraProvider) {
-        var preview : Preview = Preview.Builder()
-            .build()
-
-        var cameraSelector : CameraSelector = CameraSelector.Builder()
-            .requireLensFacing(CameraSelector.LENS_FACING_BACK)
-            .build()
-
-        preview.setSurfaceProvider(previewView.surfaceProvider)
-
-        var camera = cameraProvider.bindToLifecycle(this as LifecycleOwner, cameraSelector, preview)
-    }
-
-
-
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    }
+
+    // Función para aplicar el tamaño de fuente en tus elementos de vista
+    private fun applyFontSize(fontSize: Int, translatedTextView: EditText, suggestionTextView: TextView) {
+        // Ajusta el tamaño de fuente en función de `fontSize`
+        when (fontSize) {
+            FontSettingsDialog.SMALL_FONT_SIZE -> {
+                translatedTextView.textSize = 14f // Tamaño pequeño
+                suggestionTextView.textSize = 14f
+            }
+            FontSettingsDialog.MEDIUM_FONT_SIZE -> {
+                translatedTextView.textSize = 20f // Tamaño mediano
+                suggestionTextView.textSize = 20f
+            }
+            FontSettingsDialog.LARGE_FONT_SIZE -> {
+                translatedTextView.textSize = 26f // Tamaño grande
+                suggestionTextView.textSize = 26f
+            }
+            else -> {
+                // Tamaño de fuente predeterminado si no se encuentra el valor en las preferencias
+                translatedTextView.textSize = 20f
+                suggestionTextView.textSize = 20f
+            }
+        }
+    }
+
+    private fun getFontSizeFromPreferences(): Int {
+        // Obtén el tamaño de fuente de las preferencias compartidas (deberías implementar esto)
+        // Por ejemplo, si almacenaste el tamaño de fuente en las preferencias como "fontSize":
+        return sharedPreferences.getInt(FontSettingsDialog.KEY_FONT_SIZE, FontSettingsDialog.MEDIUM_FONT_SIZE)
+    }
+
+    // Implementar la interfaz FontSizeChangeListener
+    override fun onFontSizeChanged(fontSize: Int) {
+        // Aquí puedes reaccionar a cambios en el tamaño de fuente si es necesario
+        // Por ejemplo, podrías volver a cargar la vista con el nuevo tamaño de fuente
+        applyFontSize(fontSize, requireView().findViewById(R.id.translatedText),requireView().findViewById(R.id.suggestionTextView))
     }
 }
 

@@ -1,49 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     tools:context=".Home"
-    android:layout_margin="2dp">
+    >
 
 <!-- Camera preview -->
     <androidx.cardview.widget.CardView
         android:id="@+id/cardView"
         android:layout_width="match_parent"
-        android:layout_height="250dp"
+        android:layout_height="270dp"
         android:layout_gravity="top|center"
         app:cardCornerRadius="20dp"
         app:cardElevation="4dp"
         app:cardUseCompatPadding="true"
-        >
+        app:layout_constraintTop_toTopOf="parent">
 
         <View
             android:id="@+id/overlayView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"/>
+            android:layout_height="match_parent" />
+
         <androidx.camera.view.PreviewView
             android:id="@+id/previewView"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" >
+            android:layout_height="match_parent">
 
         </androidx.camera.view.PreviewView>
-
 
 
     </androidx.cardview.widget.CardView>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_gravity="top"
-        android:layout_marginTop="250dp">
-
+        android:layout_height="354dp"
+        android:layout_gravity="bottom"
+        android:layout_below="@+id/cardView"
+        android:layout_alignParentBottom="true"
+        >
 
         <EditText
             android:id="@+id/translatedText"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="50dp"
             android:layout_marginStart="12dp"
             android:layout_marginTop="12dp"
             android:layout_marginEnd="12dp"
@@ -62,7 +63,9 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
+            android:textSize="20dp"
             android:text="Debug Data"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.832"
             app:layout_constraintStart_toStartOf="parent"
@@ -74,6 +77,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="Class id"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.639"
             app:layout_constraintStart_toStartOf="parent"
@@ -85,6 +89,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Score"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.615"
             app:layout_constraintStart_toStartOf="parent"
@@ -96,6 +101,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Box"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.596"
             app:layout_constraintStart_toStartOf="parent"
@@ -107,6 +113,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="{classId}"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.773"
             app:layout_constraintStart_toEndOf="@+id/textView2"
@@ -114,10 +121,12 @@
 
         <TextView
             android:id="@+id/textScore"
+
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="{Score}"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.836"
             app:layout_constraintStart_toEndOf="@+id/textView3"
@@ -125,10 +134,12 @@
 
         <TextView
             android:id="@+id/textBoundingBox"
+
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="{BoundingBox}"
+            android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.741"
             app:layout_constraintStart_toEndOf="@+id/textView4"
@@ -148,10 +159,13 @@
 
         <LinearLayout
             android:id="@+id/optionContainer"
+
             android:layout_width="111dp"
             android:layout_height="110dp"
             android:layout_marginStart="16dp"
             android:layout_marginTop="12dp"
+            android:gravity="top"
+            android:orientation="vertical"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/suggestionTextView">
 
@@ -165,6 +179,7 @@
             android:layout_marginBottom="16dp"
             android:padding="12dp"
             android:text="Test Red Neuronal"
+            android:visibility="gone"
             app:icon="@drawable/ic_reload"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/translateButton" />
@@ -218,4 +233,4 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 
-</FrameLayout>
+</RelativeLayout>

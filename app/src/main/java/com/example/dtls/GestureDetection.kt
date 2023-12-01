@@ -19,10 +19,12 @@ class GestureDetection private constructor(private val context: Context){
         "optimized_b4nms.pt",
         "optimized_2k.pth",
         "optimized_2k_int.ptl",
+        "optimized_6k_CU_NN_HA_class.pth",
+        "optimized_6k_CU_NN_HA_int.ptl"
         )
 
-    public val model = 0
-    public var threshold: Float = 0.65f
+    public val model = 4
+    public var threshold: Float = 0.50f
     private val module: Module = Module.load(assetFilePath(context,models[model]))
 
     data class DetectResult(
@@ -39,14 +41,14 @@ class GestureDetection private constructor(private val context: Context){
         }
     }
 
-    fun getTranslation(bitmap: Bitmap): DetectResult? {
+    public fun getTranslation(bitmap: Bitmap): List<DetectResult>? {
         var resizedBitmap= resizeBitmap(bitmap)
-        Home
         val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
             resizedBitmap,
             TensorImageUtils.TORCHVISION_NORM_MEAN_RGB,
             TensorImageUtils.TORCHVISION_NORM_STD_RGB
         )
+
         var x :IValue
         var boxes: IValue
         var score: IValue
@@ -68,7 +70,7 @@ class GestureDetection private constructor(private val context: Context){
         }
 
         // this a self implemented (NMS) no maximum suppress
-        var detection = nms(x.toTensor(), threshold)
+        var detection = nms(x.toTensor(), 0.50f)
         if(detection.isEmpty()){
             Log.println(Log.ERROR,"In getTranslation" ,"detection")
         }else{
@@ -77,7 +79,7 @@ class GestureDetection private constructor(private val context: Context){
 
         }
 
-         return getHighestScore(detection)
+         return detection
     }
 
 
