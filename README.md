@@ -9,10 +9,10 @@ El conjunto de datos es una recopilación de gestos del lenguaje de señas chile
 ## Tecnologías Utilizadas
 
 - Pytorch: Librería de aprendizaje profundo utilizada para implementar y entrenar modelos de redes neuronales.
-- YoloV8 (Específicamente YoloV8n): Modelo de detección de objetos utilizado para la identificación de gestos en tiempo real.
+- YoloV8: Modelo de detección de objetos utilizado para la identificación de gestos en tiempo real.
 - Roboflow: Plataforma utilizada para la creación del conjunto de datos, el hosting de redes neuronales y el entrenamiento de modelos adicionales.
 - Google Colab: Entorno en línea de Google para la ejecución de cuadernos Jupyter, utilizado para el entrenamiento de redes neuronales.
-- Android Studio (Kotlin): Entorno de desarrollo integrado para la creación de la aplicación móvil en Android, implementada en el lenguaje Kotlin.
+- Android Studio: Entorno de desarrollo integrado para la creación de la aplicación móvil en Android, implementada en el lenguaje Kotlin.
 - Android 8: Versión del sistema operativo móvil para el cual se desarrolló la aplicación.
 
 ## Funciones Principales
