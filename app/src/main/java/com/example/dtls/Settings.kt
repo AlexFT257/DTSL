@@ -40,6 +40,10 @@ class Settings : Fragment(), FontSizeChangeListener {
         // Encuentra vistas en el diseño
         val btnOpenFontSettings = view.findViewById<Button>(R.id.btnOpenFontSettings)
         val textViewExample = view.findViewById<TextView>(R.id.textViewExample)
+        val textViewTitulo = view.findViewById<TextView>(R.id.ConfigTitle)
+        val textViewUmbral = view.findViewById<TextView>(R.id.textView5)
+        val textViewIntruccion = view.findViewById<TextView>(R.id.textView6)
+        val textViewUso = view.findViewById<TextView>(R.id.textView8)
         val btnChangeTheme = view.findViewById<Button>(R.id.btnChangeTheme)
         val creditText = view.findViewById<TextView>(R.id.textCredits)
         var thresholdSlider = view.findViewById<Slider>(R.id.thresholdSider)
@@ -88,28 +92,53 @@ class Settings : Fragment(), FontSizeChangeListener {
         }
 
         // Aplicar el tamaño de fuente predeterminado al cargar el fragmento
-        applyFontSize(getFontSizeFromPreferences(), textViewExample)
+        applyFontSize(getFontSizeFromPreferences(), textViewExample, textViewTitulo, textViewUmbral, creditText, textViewInfo, textViewIntruccion, textViewUso)
     }
 
     // Función para aplicar el tamaño de fuente en tus elementos de vista
-    private fun applyFontSize(fontSize: Int, textViewExample: TextView) {
+    private fun applyFontSize(fontSize: Int, textViewExample: TextView, textViewTitulo: TextView, textViewUmbral: TextView, creditText: TextView, textViewInfo: TextView,
+                              textViewIntruccion: TextView, textViewUso: TextView) {
         // Ajusta el tamaño de fuente en función de `fontSize`
         when (fontSize) {
             FontSettingsDialog.SMALL_FONT_SIZE -> {
                 textViewExample.textSize = 14f // Tamaño pequeño
+                textViewTitulo.textSize = 14f
+                textViewUmbral.textSize = 14f
+                creditText.textSize = 11f
+                textViewInfo.textSize = 11f
+                textViewIntruccion.textSize = 14f
+                textViewUso.textSize = 11f
                 textViewExample.text = "Texto de ejemplo (Pequeño)"
             }
             FontSettingsDialog.MEDIUM_FONT_SIZE -> {
                 textViewExample.textSize = 18f // Tamaño mediano
+                textViewTitulo.textSize = 20f
+                textViewUmbral.textSize = 20f
+                creditText.textSize = 12f
+                textViewInfo.textSize = 12f
+                textViewIntruccion.textSize = 20f
+                textViewUso.textSize = 12f
                 textViewExample.text = "Texto de ejemplo (Mediano)"
             }
             FontSettingsDialog.LARGE_FONT_SIZE -> {
                 textViewExample.textSize = 24f // Tamaño grande
+                textViewTitulo.textSize = 26f
+                textViewUmbral.textSize = 26f
+                creditText.textSize = 13f
+                textViewInfo.textSize = 13f
+                textViewIntruccion.textSize = 26f
+                textViewUso.textSize = 13f
                 textViewExample.text = "Texto de ejemplo (Grande)"
             }
             else -> {
                 // Tamaño de fuente predeterminado si no se encuentra el valor en las preferencias
                 textViewExample.textSize = 18f
+                textViewTitulo.textSize = 20f
+                textViewUmbral.textSize = 20f
+                creditText.textSize = 12f
+                textViewInfo.textSize = 12f
+                textViewIntruccion.textSize = 20f
+                textViewUso.textSize = 12f
                 textViewExample.text = "Texto de ejemplo (Mediano)"
             }
         }
@@ -126,6 +155,8 @@ class Settings : Fragment(), FontSizeChangeListener {
     override fun onFontSizeChanged(fontSize: Int) {
         // Aquí puedes reaccionar a cambios en el tamaño de fuente si es necesario
         // Por ejemplo, podrías volver a cargar la vista con el nuevo tamaño de fuente
-        applyFontSize(fontSize, requireView().findViewById(R.id.textViewExample))
+        applyFontSize(fontSize, requireView().findViewById(R.id.textViewExample), requireView().findViewById(R.id.ConfigTitle),
+            requireView().findViewById(R.id.textView5), requireView().findViewById(R.id.textCredits),
+            requireView().findViewById(R.id.textView7), requireView().findViewById(R.id.textView6), requireView().findViewById(R.id.textView8),)
     }
 }

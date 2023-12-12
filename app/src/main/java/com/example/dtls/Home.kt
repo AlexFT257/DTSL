@@ -1,7 +1,9 @@
 package com.example.dtls
 
+import FontSizeChangeListener
 import android.Manifest
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -16,6 +18,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -35,9 +38,10 @@ import org.pytorch.torchvision.TensorImageUtils
 import java.util.concurrent.Executors
 
 
-class Home : Fragment() {
+class Home : Fragment(), FontSizeChangeListener{
 
     private val executor = Executors.newSingleThreadExecutor()
+    private lateinit var sharedPreferences: SharedPreferences
     private lateinit var cameraProviderFuture : ListenableFuture<ProcessCameraProvider>
     private lateinit var translatedTextView: EditText
     private lateinit var previewView : PreviewView
@@ -57,6 +61,16 @@ class Home : Fragment() {
     private var isTranslating: Boolean = false
 
     private var bitmapImage: Bitmap? = null
+    private var bitmapThread: Thread? =null
+
+    private var cameraControl: CameraControl? = null
+    private var currentZoomRatio = 1f
+    private var isUsingFrontCamera = false
+    private val preview: Preview by lazy {
+        Preview.Builder().build().also {
+            it.setSurfaceProvider(previewView.surfaceProvider)
+        }
+    }
 
     val spanishAlphabet = "abcdefghijklmnopqrstuvwxyz"
     val alphabetMap =spanishAlphabet
@@ -81,6 +95,7 @@ class Home : Fragment() {
         // Inflate the layout for this fragment
         val rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
+        sharedPreferences = requireActivity().getPreferences(Context.MODE_PRIVATE)
         // getting layout items
         previewView = rootView.findViewById<PreviewView>(R.id.previewView)
         translatedTextView= rootView.findViewById<EditText>(R.id.translatedText)
@@ -101,6 +116,23 @@ class Home : Fragment() {
         val translateButton = rootView.findViewById<MaterialButton>(R.id.translateButton)
         val deleteButton = rootView.findViewById<MaterialButton>(R.id.deleteButton)
         val spaceButton = rootView.findViewById<MaterialButton>(R.id.spaceButton)
+        val changeCamera = rootView.findViewById<MaterialButton>(R.id.changeCamera)
+
+        val x1Button = rootView.findViewById<MaterialButton>(R.id.x1)
+        val x2Button = rootView.findViewById<MaterialButton>(R.id.x2)
+        val x4Button = rootView.findViewById<MaterialButton>(R.id.x4)
+
+        x1Button.setOnClickListener {
+            setZoomRatio(1f)
+        }
+
+        x2Button.setOnClickListener {
+            setZoomRatio(2f)
+        }
+
+        x4Button.setOnClickListener {
+            setZoomRatio(4f)
+        }
 
         progressBar.visibility = View.GONE
 
@@ -109,6 +141,7 @@ class Home : Fragment() {
 
         translateButton.setOnClickListener{
             progressBar.visibility = View.VISIBLE
+
 
             if(isInternetAvailable(requireContext())){
                 trasnlateCurrenteGestureOnline()
@@ -137,12 +170,20 @@ class Home : Fragment() {
             translatedTextView.text.append(" ")
         }
 
+        changeCamera.setOnClickListener {
+            switchCamera()
+        }
+
+
         reloadButton.setOnClickListener{
             testRedNeuronal(rootView)
         }
 
+        applyFontSize(getFontSizeFromPreferences(), translatedTextView, suggestionTextView)
+
         return rootView
     }
+
 
     override fun onDestroyView() {
         isTranslating = false
@@ -276,6 +317,7 @@ class Home : Fragment() {
         }
     }
 
+    fun translateCurrentGesture(){
     fun translateCurrentGesture(){
         var bitmap = getImage()
         val mainActivity = activity as? MainActivity
@@ -442,29 +484,118 @@ class Home : Fragment() {
                 REQUEST_CODE_PERMISSIONS
             )
         }
+
+        cameraProviderFuture.addListener(Runnable {
+            val cameraProvider = cameraProviderFuture.get()
+
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            cameraProvider.unbindAll()
+
+            // Vincula la cámara con el ciclo de vida y la configuración de vista previa
+            val camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+
+            // Obtén el control de la cámara para ajustar el zoom
+            cameraControl = camera.cameraControl
+        }, ContextCompat.getMainExecutor(requireContext()))
+
     }
+
+
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(requireContext(), it) == PackageManager.PERMISSION_GRANTED
     }
 
-    // function that binds the camera to the preview
+
+
+    private fun setZoomRatio(zoomRatio: Float) {
+        cameraControl?.setZoomRatio(zoomRatio)
+        currentZoomRatio = zoomRatio
+    }
+
+
+
+
+    private fun setZoomRatio(zoomRatio: Float) {
+        cameraControl?.setZoomRatio(zoomRatio)
+        currentZoomRatio = zoomRatio
+    }
+
+
+   
     private fun startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener(Runnable {
             val cameraProvider = cameraProviderFuture.get()
-            val preview: Preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
+
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
             cameraProvider.unbindAll()
-            cameraProvider.bindToLifecycle(this , cameraSelector, preview)
+
+            // Vincula la cámara con el ciclo de vida y la configuración de vista previa
+            cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+
         }, ContextCompat.getMainExecutor(requireContext()))
+    }
+
+    private fun switchCamera() {
+        val cameraProvider = cameraProviderFuture.get()
+        val cameraSelector = if (isUsingFrontCamera) {
+            CameraSelector.DEFAULT_BACK_CAMERA
+        } else {
+            CameraSelector.DEFAULT_FRONT_CAMERA
+        }
+
+        cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+        cameraProviderFuture.addListener(Runnable {
+            val newCameraProvider = cameraProviderFuture.get()
+            newCameraProvider.unbindAll()
+            newCameraProvider.bindToLifecycle(this, cameraSelector, preview)
+        }, ContextCompat.getMainExecutor(requireContext()))
+
+        isUsingFrontCamera = !isUsingFrontCamera
     }
 
     companion object {
         private const val REQUEST_CODE_PERMISSIONS = 10
         private val REQUIRED_PERMISSIONS = arrayOf(Manifest.permission.CAMERA)
+    }
+
+    // Función para aplicar el tamaño de fuente en tus elementos de vista
+    private fun applyFontSize(fontSize: Int, translatedTextView: EditText, suggestionTextView: TextView) {
+        // Ajusta el tamaño de fuente en función de `fontSize`
+        when (fontSize) {
+            FontSettingsDialog.SMALL_FONT_SIZE -> {
+                translatedTextView.textSize = 14f // Tamaño pequeño
+                suggestionTextView.textSize = 14f
+            }
+            FontSettingsDialog.MEDIUM_FONT_SIZE -> {
+                translatedTextView.textSize = 20f // Tamaño mediano
+                suggestionTextView.textSize = 20f
+            }
+            FontSettingsDialog.LARGE_FONT_SIZE -> {
+                translatedTextView.textSize = 26f // Tamaño grande
+                suggestionTextView.textSize = 26f
+            }
+            else -> {
+                // Tamaño de fuente predeterminado si no se encuentra el valor en las preferencias
+                translatedTextView.textSize = 20f
+                suggestionTextView.textSize = 20f
+            }
+        }
+    }
+
+    private fun getFontSizeFromPreferences(): Int {
+        // Obtén el tamaño de fuente de las preferencias compartidas (deberías implementar esto)
+        // Por ejemplo, si almacenaste el tamaño de fuente en las preferencias como "fontSize":
+        return sharedPreferences.getInt(FontSettingsDialog.KEY_FONT_SIZE, FontSettingsDialog.MEDIUM_FONT_SIZE)
+    }
+
+    // Implementar la interfaz FontSizeChangeListener
+    override fun onFontSizeChanged(fontSize: Int) {
+        // Aquí puedes reaccionar a cambios en el tamaño de fuente si es necesario
+        // Por ejemplo, podrías volver a cargar la vista con el nuevo tamaño de fuente
+        applyFontSize(fontSize, requireView().findViewById(R.id.translatedText),requireView().findViewById(R.id.suggestionTextView))
     }
 }
 
