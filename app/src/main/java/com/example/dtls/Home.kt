@@ -23,10 +23,10 @@ import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.pytorch.IValue
@@ -110,18 +110,11 @@ class Home : Fragment() {
         translateButton.setOnClickListener{
             progressBar.visibility = View.VISIBLE
 
-            // getting the main activity to disable the bottom nav
-            val mainActivity = activity as? MainActivity
-            mainActivity?.setBottomNavStatus(false)
-
             if(isInternetAvailable(requireContext())){
                 trasnlateCurrenteGestureOnline()
             } else{
                 translateCurrentGesture()
             }
-
-            // setting the bottom nav again
-            mainActivity?.setBottomNavStatus(true)
         }
 
         deleteButton.setOnClickListener{
@@ -167,215 +160,228 @@ class Home : Fragment() {
     tranlation text bar*/
     fun trasnlateCurrenteGestureOnline(){
         var bitmap = getImage()
-        GlobalScope.launch {
-
-            if (bitmap==null){
-                Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
-                requireActivity().runOnUiThread {
-                    progressBar.visibility = View.GONE
+        // getting the main activity to disable the bottom nav
+        val mainActivity = activity as? MainActivity
+        mainActivity?.setBottomNavStatus(false)
+        lifecycleScope.launch {
+            try {
+                if (bitmap == null) {
+                    Log.println(Log.ERROR, "Translate Current Gesture", "bitmap is null")
+                    requireActivity().runOnUiThread {
+                        progressBar.visibility = View.GONE
+                    }
+                    return@launch
                 }
-                return@launch
-            }
 
-            var predictions= withContext(Dispatchers.IO){
-                gestureDetectionOnline.getPredictions(bitmap)
-            }
+                var predictions = withContext(Dispatchers.IO) {
+                    gestureDetectionOnline.getPredictions(bitmap)
+                }
 
-            if (predictions.isEmpty()){
+                if (predictions.isEmpty()) {
+                    requireActivity().runOnUiThread {
+                        Log.d("Prediction", "No se detecto ningun gesto")
+
+                        // reset the view and content if nothing was found
+                        progressBar.visibility = View.GONE
+                        suggestionTextView.visibility = View.GONE
+                        optionContainer.visibility = View.GONE
+
+                        // delete previous buttons
+                        optionContainer.removeAllViews()
+                        optionButtons.clear()
+                    }
+                    return@launch
+                }
+
+                for (prediction in predictions) {
+                    Log.d("Prediction", prediction.toString())
+                }
+
+                // debug
                 requireActivity().runOnUiThread {
-                    Log.d("Prediction","No se detecto ningun gesto")
+                    debugScore.text = predictions[0].confidence.toString()
+                    debugClassId.text = predictions[0].className
+                    debugBoundigBox.text =
+                        "x: ${predictions[0].x}\n" + "y: ${predictions[0].y}\n" +
+                                "width: ${predictions[0].width}\n" + "height: ${predictions[0].height}"
+                }
+
+                Log.println(
+                    Log.ERROR,
+                    "Translate Current Gesture",
+                    "Score: " + predictions[0].confidence.toString()
+                )
+                if (predictions[0].confidence < gestureDetectionOnline.threshold) {
+                    Log.println(
+                        Log.DEBUG,
+                        "Home",
+                        "online: ${gestureDetectionOnline.threshold}," +
+                                " local: ${gestureDetection.threshold}," +
+                                " conf: ${predictions[0].confidence}"
+                    )
+                    requireActivity().runOnUiThread {
+                        progressBar.visibility = View.GONE
+                        suggestionTextView.visibility = View.VISIBLE
+                        optionContainer.visibility = View.VISIBLE
+
+                        // delete previous buttons
+                        optionContainer.removeAllViews()
+                        optionButtons.clear()
+
+                        // setting up buttons alternatives
+                        val maxButtonsToShow = 3
+                        for ((index, prediction) in predictions.withIndex()) {
+                            if (index >= maxButtonsToShow) {
+                                break
+                            }
+
+                            val optionButton = MaterialButton(requireContext())
+                            optionButton.text = "${prediction.className}"
+
+                            optionButton.setOnClickListener {
+                                translatedTextView.append(prediction.className)
+
+                                for (button in optionButtons) {
+                                    optionContainer.removeView(button)
+                                }
+                                optionButtons.clear()
+                                optionContainer.visibility = View.GONE
+                                suggestionTextView.visibility = View.GONE
+                            }
+
+                            // add the button to the list and container
+                            optionButtons.add(optionButton)
+                            optionContainer.addView(optionButton)
+                        }
+                    }
+                    return@launch
+                }
+
+                requireActivity().runOnUiThread {
+                    translatedTextView.append(predictions[0].className)
 
                     // reset the view and content if nothing was found
                     progressBar.visibility = View.GONE
-                    suggestionTextView.visibility =View.GONE
+                    suggestionTextView.visibility = View.GONE
                     optionContainer.visibility = View.GONE
 
                     // delete previous buttons
                     optionContainer.removeAllViews()
                     optionButtons.clear()
                 }
-                return@launch
-            }
-
-            for (prediction in predictions){
-                Log.d("Prediction",prediction.toString())
-            }
-
-            // debug
-            requireActivity().runOnUiThread {
-                debugScore.text = predictions[0].confidence.toString()
-                debugClassId.text = predictions[0].className
-                debugBoundigBox.text =
-                    "x: ${predictions[0].x}\n"+"y: ${predictions[0].y}\n"+
-                            "width: ${predictions[0].width}\n" + "height: ${predictions[0].height}"
-            }
-
-            Log.println(
-                Log.ERROR,
-                "Translate Current Gesture",
-                "Score: "+ predictions[0].confidence.toString()
-            )
-            if(predictions[0].confidence < gestureDetectionOnline.threshold){
-                Log.println(
-                    Log.DEBUG,
-                    "Home",
-                        "online: ${gestureDetectionOnline.threshold},"+
-                             " local: ${gestureDetection.threshold},"+
-                             " conf: ${predictions[0].confidence}"
-                )
-                requireActivity().runOnUiThread {
-                    progressBar.visibility = View.GONE
-                    suggestionTextView.visibility =View.VISIBLE
-                    optionContainer.visibility = View.VISIBLE
-
-                    // delete previous buttons
-                    optionContainer.removeAllViews()
-                    optionButtons.clear()
-
-                    // setting up buttons alternatives
-                    val maxButtonsToShow = 3
-                    for ((index,prediction) in predictions.withIndex()){
-                        if (index>=maxButtonsToShow){
-                            break
-                        }
-
-                        val optionButton = MaterialButton(requireContext())
-                        optionButton.text = "${prediction.className}"
-
-                        optionButton.setOnClickListener {
-                            translatedTextView.append(prediction.className)
-
-                            for (button in optionButtons){
-                                optionContainer.removeView(button)
-                            }
-                            optionButtons.clear()
-                            optionContainer.visibility = View.GONE
-                            suggestionTextView.visibility = View.GONE
-                        }
-
-                        // add the button to the list and container
-                        optionButtons.add(optionButton)
-                        optionContainer.addView(optionButton)
-                    }
-                }
-                return@launch
-            }
-
-            requireActivity().runOnUiThread {
-                translatedTextView.append(predictions[0].className)
-
-                // reset the view and content if nothing was found
-                progressBar.visibility = View.GONE
-                suggestionTextView.visibility =View.GONE
-                optionContainer.visibility = View.GONE
-
-                // delete previous buttons
-                optionContainer.removeAllViews()
-                optionButtons.clear()
+            } finally {
+                // enabling the bottom nav
+                mainActivity?.setBottomNavStatus(true)
             }
         }
     }
 
     fun translateCurrentGesture(){
         var bitmap = getImage()
-        GlobalScope.launch {
-
-            if (bitmap==null){
-                Log.println(Log.ERROR,"Translate Current Gesture", "bitmap is null")
-                requireActivity().runOnUiThread {
-                    progressBar.visibility = View.GONE
+        val mainActivity = activity as? MainActivity
+        mainActivity?.setBottomNavStatus(false)
+        lifecycleScope.launch {
+            try {
+                if (bitmap == null) {
+                    Log.println(Log.ERROR, "Translate Current Gesture", "bitmap is null")
+                    requireActivity().runOnUiThread {
+                        progressBar.visibility = View.GONE
+                    }
+                    return@launch
                 }
-                return@launch
-            }
 
-            var predictions= withContext(Dispatchers.IO){
-                gestureDetection.getTranslation(bitmap)
-            }
+                var predictions = withContext(Dispatchers.IO) {
+                    gestureDetection.getTranslation(bitmap)
+                }
 
-            if (predictions.isNullOrEmpty()){
+                if (predictions.isNullOrEmpty()) {
+                    requireActivity().runOnUiThread {
+                        Log.d("Prediction", "No se detecto ningun gesto")
+
+                        // reset the view and content if nothing was found
+                        progressBar.visibility = View.GONE
+                        suggestionTextView.visibility = View.GONE
+                        optionContainer.visibility = View.GONE
+
+                        // delete previous buttons
+                        optionContainer.removeAllViews()
+                        optionButtons.clear()
+                    }
+                    return@launch
+                }
+
+                for (prediction in predictions) {
+                    Log.d("Prediction", prediction.toString())
+                }
+
+                // debug
                 requireActivity().runOnUiThread {
-                    Log.d("Prediction","No se detecto ningun gesto")
+                    debugScore.text = predictions[0].score.toString()
+                    debugClassId.text = predictions[0].classId.toString()
+                    debugBoundigBox.text =
+                        "x: ${predictions[0].boundingBox.centerX()}\n" + "y: ${predictions[0].boundingBox.centerY()}\n" +
+                                "width: ${predictions[0].boundingBox.width()}\n" + "height: ${predictions[0].boundingBox.height()}"
+                }
+
+                Log.println(
+                    Log.ERROR,
+                    "Translate Current Gesture",
+                    "Score: " + predictions[0].score.toString()
+                )
+                if (predictions[0].score < gestureDetection.threshold) {
+                    requireActivity().runOnUiThread {
+                        progressBar.visibility = View.GONE
+                        suggestionTextView.visibility = View.VISIBLE
+                        optionContainer.visibility = View.VISIBLE
+
+                        // delete previous buttons
+                        optionContainer.removeAllViews()
+                        optionButtons.clear()
+
+                        // setting up buttons
+                        val maxButtonsToShow = 3
+                        for ((index, prediction) in predictions.withIndex()) {
+                            if (index >= maxButtonsToShow) {
+                                break
+                            }
+
+                            val optionButton = MaterialButton(requireContext())
+                            optionButton.text = "${alphabetMap[prediction.classId]}"
+
+                            optionButton.setOnClickListener {
+                                translatedTextView.append(alphabetMap[prediction.classId])
+
+                                for (button in optionButtons) {
+                                    optionContainer.removeView(button)
+                                }
+                                optionButtons.clear()
+                                optionContainer.visibility = View.GONE
+                                suggestionTextView.visibility = View.GONE
+                            }
+
+                            // add the button to the list and container
+                            optionButtons.add(optionButton)
+                            optionContainer.addView(optionButton)
+                        }
+                    }
+                    return@launch
+                }
+
+                requireActivity().runOnUiThread {
+                    translatedTextView.append(alphabetMap[predictions[0].classId])
 
                     // reset the view and content if nothing was found
                     progressBar.visibility = View.GONE
-                    suggestionTextView.visibility =View.GONE
+                    suggestionTextView.visibility = View.GONE
                     optionContainer.visibility = View.GONE
 
                     // delete previous buttons
                     optionContainer.removeAllViews()
                     optionButtons.clear()
                 }
-                return@launch
-            }
-
-            for (prediction in predictions){
-                Log.d("Prediction",prediction.toString())
-            }
-
-            // debug
-            requireActivity().runOnUiThread {
-                debugScore.text = predictions[0].score.toString()
-                debugClassId.text = predictions[0].classId.toString()
-                debugBoundigBox.text =
-                    "x: ${predictions[0].boundingBox.centerX()}\n"+"y: ${predictions[0].boundingBox.centerY()}\n"+
-                            "width: ${predictions[0].boundingBox.width()}\n" + "height: ${predictions[0].boundingBox.height()}"
-            }
-
-            Log.println(
-                Log.ERROR,
-                "Translate Current Gesture",
-                "Score: "+ predictions[0].score.toString()
-            )
-            if(predictions[0].score < gestureDetection.threshold){
-                requireActivity().runOnUiThread {
-                    progressBar.visibility = View.GONE
-                    suggestionTextView.visibility =View.VISIBLE
-                    optionContainer.visibility = View.VISIBLE
-
-                    // delete previous buttons
-                    optionContainer.removeAllViews()
-                    optionButtons.clear()
-
-                    // setting up buttons
-                    val maxButtonsToShow = 3
-                    for ((index,prediction) in predictions.withIndex()){
-                        if (index>=maxButtonsToShow){
-                            break
-                        }
-
-                        val optionButton = MaterialButton(requireContext())
-                        optionButton.text = "${alphabetMap[prediction.classId]}"
-
-                        optionButton.setOnClickListener {
-                            translatedTextView.append(alphabetMap[prediction.classId])
-
-                            for (button in optionButtons){
-                                optionContainer.removeView(button)
-                            }
-                            optionButtons.clear()
-                            optionContainer.visibility = View.GONE
-                            suggestionTextView.visibility = View.GONE
-                        }
-
-                        // add the button to the list and container
-                        optionButtons.add(optionButton)
-                        optionContainer.addView(optionButton)
-                    }
-                }
-                return@launch
-            }
-
-            requireActivity().runOnUiThread {
-                translatedTextView.append(alphabetMap[predictions[0].classId])
-
-                // reset the view and content if nothing was found
-                progressBar.visibility = View.GONE
-                suggestionTextView.visibility =View.GONE
-                optionContainer.visibility = View.GONE
-
-                // delete previous buttons
-                optionContainer.removeAllViews()
-                optionButtons.clear()
+            }finally{
+                // enabling the bottom nav
+                mainActivity?.setBottomNavStatus(true)
             }
         }
     }

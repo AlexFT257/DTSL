@@ -28,7 +28,8 @@ class MainActivity : AppCompatActivity() {
 
 
     fun  setBottomNavStatus(enabled: Boolean){
-        bottomNavigationView.isEnabled = enabled
+        var bottomNavigationView = findViewById<BottomNavigationView>(R.id.bottomNavigationView)
+        bottomNavigationView.menu.setGroupEnabled(0, enabled)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
