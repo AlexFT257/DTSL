@@ -18,6 +18,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -65,6 +66,15 @@ class Home : Fragment(), FontSizeChangeListener{
     private var bitmapImage: Bitmap? = null
     private var bitmapThread: Thread? =null
 
+    private var cameraControl: CameraControl? = null
+    private var currentZoomRatio = 1f
+    private var isUsingFrontCamera = false
+    private val preview: Preview by lazy {
+        Preview.Builder().build().also {
+            it.setSurfaceProvider(previewView.surfaceProvider)
+        }
+    }
+
     val spanishAlphabet = "abcdefghijklmnopqrstuvwxyz"
     val alphabetMap =spanishAlphabet
         .withIndex()
@@ -107,6 +117,23 @@ class Home : Fragment(), FontSizeChangeListener{
         val translateButton = rootView.findViewById<MaterialButton>(R.id.translateButton)
         val deleteButton = rootView.findViewById<MaterialButton>(R.id.deleteButton)
         val spaceButton = rootView.findViewById<MaterialButton>(R.id.spaceButton)
+        val changeCamera = rootView.findViewById<MaterialButton>(R.id.changeCamera)
+
+        val x1Button = rootView.findViewById<MaterialButton>(R.id.x1)
+        val x2Button = rootView.findViewById<MaterialButton>(R.id.x2)
+        val x4Button = rootView.findViewById<MaterialButton>(R.id.x4)
+
+        x1Button.setOnClickListener {
+            setZoomRatio(1f)
+        }
+
+        x2Button.setOnClickListener {
+            setZoomRatio(2f)
+        }
+
+        x4Button.setOnClickListener {
+            setZoomRatio(4f)
+        }
 
         progressBar.visibility = View.GONE
 
@@ -143,6 +170,11 @@ class Home : Fragment(), FontSizeChangeListener{
             translatedTextView.text.append(" ")
         }
 
+        changeCamera.setOnClickListener {
+            switchCamera()
+        }
+
+
         reloadButton.setOnClickListener{
             testRedNeuronal(rootView)
         }
@@ -151,6 +183,7 @@ class Home : Fragment(), FontSizeChangeListener{
 
         return rootView
     }
+
 
     override fun onDestroyView() {
         isTranslating = false
@@ -431,11 +464,36 @@ class Home : Fragment(), FontSizeChangeListener{
                 REQUEST_CODE_PERMISSIONS
             )
         }
+
+        cameraProviderFuture.addListener(Runnable {
+            val cameraProvider = cameraProviderFuture.get()
+
+            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+
+            cameraProvider.unbindAll()
+
+            // Vincula la cámara con el ciclo de vida y la configuración de vista previa
+            val camera = cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+
+            // Obtén el control de la cámara para ajustar el zoom
+            cameraControl = camera.cameraControl
+        }, ContextCompat.getMainExecutor(requireContext()))
+
     }
+
+
 
     private fun allPermissionsGranted() = REQUIRED_PERMISSIONS.all {
         ContextCompat.checkSelfPermission(requireContext(), it) == PackageManager.PERMISSION_GRANTED
     }
+
+
+
+    private fun setZoomRatio(zoomRatio: Float) {
+        cameraControl?.setZoomRatio(zoomRatio)
+        currentZoomRatio = zoomRatio
+    }
+
 
     private fun startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
@@ -443,17 +501,32 @@ class Home : Fragment(), FontSizeChangeListener{
         cameraProviderFuture.addListener(Runnable {
             val cameraProvider = cameraProviderFuture.get()
 
-            val preview: Preview = Preview.Builder().build().also {
-                it.setSurfaceProvider(previewView.surfaceProvider)
-            }
-
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             cameraProvider.unbindAll()
 
-            cameraProvider.bindToLifecycle(this , cameraSelector, preview)
+            // Vincula la cámara con el ciclo de vida y la configuración de vista previa
+            cameraProvider.bindToLifecycle(this, cameraSelector, preview)
 
         }, ContextCompat.getMainExecutor(requireContext()))
+    }
+
+    private fun switchCamera() {
+        val cameraProvider = cameraProviderFuture.get()
+        val cameraSelector = if (isUsingFrontCamera) {
+            CameraSelector.DEFAULT_BACK_CAMERA
+        } else {
+            CameraSelector.DEFAULT_FRONT_CAMERA
+        }
+
+        cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+        cameraProviderFuture.addListener(Runnable {
+            val newCameraProvider = cameraProviderFuture.get()
+            newCameraProvider.unbindAll()
+            newCameraProvider.bindToLifecycle(this, cameraSelector, preview)
+        }, ContextCompat.getMainExecutor(requireContext()))
+
+        isUsingFrontCamera = !isUsingFrontCamera
     }
 
     companion object {
