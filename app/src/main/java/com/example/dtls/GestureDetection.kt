@@ -153,7 +153,6 @@ class GestureDetection private constructor(private val context: Context){
                 val box_i = boxes.sliceArray(i*4 until (i*4)+4)
                 val box_j = boxes.sliceArray(j*4 until (j*4)+4)
                 val iou = calculate_iou(box_i, box_j)
-                // TODO: el treshold no se esta respetando
                 if (iou > threshold && classes[j].toInt() == current_class) {
                     if (scores[j] > scores[i]) {
                         selected_indices.remove(i)

@@ -44,7 +44,7 @@ class Settings : Fragment(), FontSizeChangeListener {
         val creditText = view.findViewById<TextView>(R.id.textCredits)
         var thresholdSlider = view.findViewById<Slider>(R.id.thresholdSider)
 
-        // para que se pueda acceder al github de cada uno
+        // para que se pueda acceder al github al enlace
         creditText.movementMethod = LinkMovementMethod.getInstance()
 
         // buscando las instancias para modificarlas
@@ -55,7 +55,11 @@ class Settings : Fragment(), FontSizeChangeListener {
         thresholdSlider.addOnChangeListener(Slider.OnChangeListener { slider, value, fromUser ->
             gestureDetection.threshold = value/100
             gestureDetectionOnline.threshold = value/100
-            Log.println(Log.DEBUG,"Slider","online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}")
+            Log.println(
+                Log.DEBUG,
+                "Slider",
+                "online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}"
+            )
         })
 
         // Manejar el clic en el botón "Aplicar"

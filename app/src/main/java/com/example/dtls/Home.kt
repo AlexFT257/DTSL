@@ -156,9 +156,7 @@ class Home : Fragment() {
 
     fun isInternetAvailable(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-
         val networkCapabilities = connectivityManager.getNetworkCapabilities(connectivityManager.activeNetwork)
-
         return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
 
@@ -433,20 +431,14 @@ class Home : Fragment() {
 
     private fun startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
-
         cameraProviderFuture.addListener(Runnable {
             val cameraProvider = cameraProviderFuture.get()
-
             val preview: Preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(previewView.surfaceProvider)
             }
-
             val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-
             cameraProvider.unbindAll()
-
             cameraProvider.bindToLifecycle(this , cameraSelector, preview)
-
         }, ContextCompat.getMainExecutor(requireContext()))
     }
 

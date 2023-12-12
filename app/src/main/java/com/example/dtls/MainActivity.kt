@@ -1,8 +1,9 @@
 package com.example.dtls
 
-import android.Manifest
 import Gestures
 import Settings
+import android.Manifest
+import android.app.AlertDialog
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -35,7 +36,7 @@ class MainActivity : AppCompatActivity() {
                 this,
                 Manifest.permission.CAMERA
             )!= PackageManager.PERMISSION_GRANTED) {
-            val alertDialog = android.app.AlertDialog.Builder(this)
+            val alertDialog = AlertDialog.Builder(this)
                 .setTitle("Solicitud de permisos")
                 .setMessage("La aplicacion requiere de los siguientes permisos para funcionar")
                 .setPositiveButton("Aceptar") { _, _ ->
@@ -49,15 +50,7 @@ class MainActivity : AppCompatActivity() {
         }
         requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE),12)
 
-
         replaceFragment(Home()) // this changes the fragment
-
-
-
-//            val dialogFragment = PermissionDialogFragment()
-//            dialogFragment.show(vi,"Solicitud de permisos")
-//            replaceFragment(PermissionDialogFragment())
-//        }
 
         binding.bottomNavigationView.setOnItemSelectedListener {
             when (it.itemId){
@@ -66,33 +59,12 @@ class MainActivity : AppCompatActivity() {
                 R.id.settings -> replaceFragment(Settings())
                 else ->{}
             }
-            
             true
         }
 
-        /*var bitmap = BitmapFactory.decodeStream(assets.open("a1.jpg"))
-        // optimized_b4nms
-        val moduleFilePath = assetFilePath(this, "optimized_b4nms.pth")
-        val module = Module.load(moduleFilePath)
-
-        bitmap = resizeBitmap(bitmap)
-        val inputTensor = TensorImageUtils.bitmapToFloat32Tensor(
-            bitmap,
-            TensorImageUtils.TORCHVISION_NORM_MEAN_RGB, TensorImageUtils.TORCHVISION_NORM_STD_RGB
-        )
-//        val textView: TextView = findViewById()
-//        textView.text = inputTensor.toString()+"\n"
-        // the model have 3 outputs, so make it into Tuple
-        val (x, boxes, scores) = module.forward(IValue.from(inputTensor)).toTuple()
-        // This is a self implemented NMS...
-        // (which if torchvision provide this, we no longer need to implemenet ourselves)
-        var detResult = nms(x.toTensor(), 0.45f) // the 0.45 is IoU threshold
-//        var text = textView.text.toString() + detResult.toString()
-//        textView.text = text */
     }
 
     private fun replaceFragment(fragment: Fragment){
-
         val fragmentManager = supportFragmentManager
         val fragmentTransaction= fragmentManager.beginTransaction()
         fragmentTransaction.replace(R.id.frameLayout,fragment)

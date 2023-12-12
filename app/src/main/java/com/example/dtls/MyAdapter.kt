@@ -42,7 +42,10 @@ class MyAdapter(
         fun bind(item: String, imageResource: Int, sharedPreferences: SharedPreferences, position: Int) {
             textView.text = item
             val isExpanded = position == expandedPosition
-            val fontSize = sharedPreferences.getInt(FontSettingsDialog.KEY_FONT_SIZE, FontSettingsDialog.MEDIUM_FONT_SIZE)
+            val fontSize = sharedPreferences.getInt(
+                FontSettingsDialog.KEY_FONT_SIZE,
+                FontSettingsDialog.MEDIUM_FONT_SIZE
+            )
 
             // Ajustar el tamaño de fuente de itemTextView en función de la configuración
             when (fontSize) {
