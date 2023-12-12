@@ -47,6 +47,7 @@ class Settings : Fragment(), FontSizeChangeListener {
         val btnChangeTheme = view.findViewById<Button>(R.id.btnChangeTheme)
         val creditText = view.findViewById<TextView>(R.id.textCredits)
         var thresholdSlider = view.findViewById<Slider>(R.id.thresholdSider)
+        var textViewInfo = view.findViewById<TextView>(R.id.textView7)
 
         // para que se pueda acceder al github al enlace
         creditText.movementMethod = LinkMovementMethod.getInstance()

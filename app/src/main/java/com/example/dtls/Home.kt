@@ -1,5 +1,6 @@
 package com.example.dtls
 
+import FontSettingsDialog
 import FontSizeChangeListener
 import android.Manifest
 import android.content.Context
@@ -318,7 +319,6 @@ class Home : Fragment(), FontSizeChangeListener{
     }
 
     fun translateCurrentGesture(){
-    fun translateCurrentGesture(){
         var bitmap = getImage()
         val mainActivity = activity as? MainActivity
         mainActivity?.setBottomNavStatus(false)
@@ -509,15 +509,7 @@ class Home : Fragment(), FontSizeChangeListener{
 
 
 
-    private fun setZoomRatio(zoomRatio: Float) {
-        cameraControl?.setZoomRatio(zoomRatio)
-        currentZoomRatio = zoomRatio
-    }
-
-
-
-
-    private fun setZoomRatio(zoomRatio: Float) {
+    fun setZoomRatio(zoomRatio: Float) {
         cameraControl?.setZoomRatio(zoomRatio)
         currentZoomRatio = zoomRatio
     }
