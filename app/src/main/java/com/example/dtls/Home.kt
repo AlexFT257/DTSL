@@ -52,15 +52,11 @@ class Home : Fragment() {
     private lateinit var gestureDetectionOnline: GestureDetectionOnline
 
 
-    private val timeUntilWhiteSpace = 5000
-    private var timeSinceLastTranslation: Long =0
-    private var currentTime: Long = 0
-    private var translationThread: Thread? = null
+
     @Volatile
     private var isTranslating: Boolean = false
 
     private var bitmapImage: Bitmap? = null
-    private var bitmapThread: Thread? =null
 
     val spanishAlphabet = "abcdefghijklmnopqrstuvwxyz"
     val alphabetMap =spanishAlphabet
@@ -85,6 +81,7 @@ class Home : Fragment() {
         // Inflate the layout for this fragment
         val rootView = inflater.inflate(R.layout.fragment_home, container, false)
 
+        // getting layout items
         previewView = rootView.findViewById<PreviewView>(R.id.previewView)
         translatedTextView= rootView.findViewById<EditText>(R.id.translatedText)
         debugScore = rootView.findViewById<TextView>(R.id.textScore)
@@ -95,6 +92,7 @@ class Home : Fragment() {
         optionContainer = rootView.findViewById(R.id.optionContainer)
         suggestionTextView = rootView.findViewById(R.id.suggestionTextView)
 
+        // debug stats
         debugScore.visibility = View.GONE
         debugClassId.visibility = View.GONE
         debugBoundigBox.visibility = View.GONE
@@ -112,11 +110,18 @@ class Home : Fragment() {
         translateButton.setOnClickListener{
             progressBar.visibility = View.VISIBLE
 
+            // getting the main activity to disable the bottom nav
+            val mainActivity = activity as? MainActivity
+            mainActivity?.setBottomNavStatus(false)
+
             if(isInternetAvailable(requireContext())){
                 trasnlateCurrenteGestureOnline()
             } else{
                 translateCurrentGesture()
             }
+
+            // setting the bottom nav again
+            mainActivity?.setBottomNavStatus(true)
         }
 
         deleteButton.setOnClickListener{
@@ -148,9 +153,6 @@ class Home : Fragment() {
 
     override fun onDestroyView() {
         isTranslating = false
-//        translationThread?.join()
-//        bitmapThread?.join()
-
         super.onDestroyView()
     }
 
@@ -160,6 +162,9 @@ class Home : Fragment() {
         return networkCapabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
     }
 
+
+    /* Function that translate gestures to string using Roboflow servers and put it in the
+    tranlation text bar*/
     fun trasnlateCurrenteGestureOnline(){
         var bitmap = getImage()
         GlobalScope.launch {
@@ -211,7 +216,13 @@ class Home : Fragment() {
                 "Score: "+ predictions[0].confidence.toString()
             )
             if(predictions[0].confidence < gestureDetectionOnline.threshold){
-                Log.println(Log.DEBUG,"Home","online: ${gestureDetectionOnline.threshold}, local: ${gestureDetection.threshold}, conf: ${predictions[0].confidence}")
+                Log.println(
+                    Log.DEBUG,
+                    "Home",
+                        "online: ${gestureDetectionOnline.threshold},"+
+                             " local: ${gestureDetection.threshold},"+
+                             " conf: ${predictions[0].confidence}"
+                )
                 requireActivity().runOnUiThread {
                     progressBar.visibility = View.GONE
                     suggestionTextView.visibility =View.VISIBLE
@@ -221,6 +232,7 @@ class Home : Fragment() {
                     optionContainer.removeAllViews()
                     optionButtons.clear()
 
+                    // setting up buttons alternatives
                     val maxButtonsToShow = 3
                     for ((index,prediction) in predictions.withIndex()){
                         if (index>=maxButtonsToShow){
@@ -280,8 +292,6 @@ class Home : Fragment() {
                 gestureDetection.getTranslation(bitmap)
             }
 
-
-
             if (predictions.isNullOrEmpty()){
                 requireActivity().runOnUiThread {
                     Log.d("Prediction","No se detecto ningun gesto")
@@ -326,6 +336,7 @@ class Home : Fragment() {
                     optionContainer.removeAllViews()
                     optionButtons.clear()
 
+                    // setting up buttons
                     val maxButtonsToShow = 3
                     for ((index,prediction) in predictions.withIndex()){
                         if (index>=maxButtonsToShow){
@@ -412,11 +423,13 @@ class Home : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // if permission are garanted then bind the camera and get instances
         if (allPermissionsGranted()) {
             startCamera()
             gestureDetection = GestureDetection.getInstance(requireContext())
             gestureDetectionOnline = GestureDetectionOnline.getInstance(requireContext())
         } else {
+            // get permissions
             ActivityCompat.requestPermissions(
                 requireActivity(),
                 REQUIRED_PERMISSIONS,
@@ -429,6 +442,7 @@ class Home : Fragment() {
         ContextCompat.checkSelfPermission(requireContext(), it) == PackageManager.PERMISSION_GRANTED
     }
 
+    // function that binds the camera to the preview
     private fun startCamera() {
         cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener(Runnable {

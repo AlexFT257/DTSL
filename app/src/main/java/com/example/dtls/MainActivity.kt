@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.example.dtls.databinding.ActivityMainBinding
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import org.pytorch.Tensor
 import java.io.File
 import java.io.FileOutputStream
@@ -23,6 +24,12 @@ import java.io.IOException
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var bottomNavigationView: BottomNavigationView
+
+
+    fun  setBottomNavStatus(enabled: Boolean){
+        bottomNavigationView.isEnabled = enabled
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,6 +59,7 @@ class MainActivity : AppCompatActivity() {
 
         replaceFragment(Home()) // this changes the fragment
 
+        bottomNavigationView = binding.bottomNavigationView
         binding.bottomNavigationView.setOnItemSelectedListener {
             when (it.itemId){
                 R.id.home -> replaceFragment(Home())
