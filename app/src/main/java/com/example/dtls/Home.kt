@@ -483,6 +483,7 @@ class Home : Fragment(), FontSizeChangeListener{
                 REQUIRED_PERMISSIONS,
                 REQUEST_CODE_PERMISSIONS
             )
+            startCamera()
         }
 
         cameraProviderFuture.addListener(Runnable {

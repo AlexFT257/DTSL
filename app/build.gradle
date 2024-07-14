@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace 'com.example.dtls'
-    compileSdk 34
+    compileSdk 35 // Actualizar a 35
 
     defaultConfig {
         applicationId "com.example.dtls"
         minSdk 26
-        targetSdk 33
+        targetSdk 35 // Actualizar a 35
         versionCode 1
         versionName "1.0"
 
